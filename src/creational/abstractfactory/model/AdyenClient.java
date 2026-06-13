@@ -1,10 +1,7 @@
 package creational.abstractfactory.model;
 
-import creational.abstractfactory.PspClient;
-
-public class AdyenClient implements PspClient {
-  @Override
-  public void charge(long amount) {
-    System.out.println("[Adyen] charge " + amount + " cents");
-  }
+public final class AdyenClient implements PspClient {
+    public void charge(long amountCents) {
+        System.out.println("  [Adyen] charge " + amountCents + " cents");
+    }
 }
