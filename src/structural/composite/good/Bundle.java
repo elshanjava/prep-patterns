@@ -3,8 +3,8 @@ package structural.composite.good;
 import java.math.BigDecimal;
 import java.util.List;
 
-// Контейнер: делегирует total() дочерним элементам — рекурсия без instanceof.
-// Может содержать как LineItem, так и другие Bundle (произвольная вложенность).
+// Контейнер: делегирует все три метода дочерним элементам — без единого instanceof.
+// Рекурсия на любую глубину, клиент её не видит.
 final class Bundle implements OrderComponent {
     private final String               name;
     private final List<OrderComponent> children;
@@ -18,8 +18,20 @@ final class Bundle implements OrderComponent {
 
     @Override
     public BigDecimal total() {
-        return children.stream()
-                       .map(OrderComponent::total)
-                       .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return sum(OrderComponent::total);
+    }
+
+    @Override
+    public BigDecimal discount() {
+        return sum(OrderComponent::discount);
+    }
+
+    @Override
+    public BigDecimal tax() {
+        return sum(OrderComponent::tax);
+    }
+
+    private BigDecimal sum(java.util.function.Function<OrderComponent, BigDecimal> fn) {
+        return children.stream().map(fn).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

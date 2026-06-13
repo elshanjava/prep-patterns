@@ -2,9 +2,11 @@ package structural.composite.good;
 
 import java.math.BigDecimal;
 
-// Единый интерфейс для листа (LineItem) и контейнера (Bundle).
-// Клиент вызывает total() — не зная, это один товар или вложенное дерево.
+// Единый контракт для всех элементов дерева заказа.
+// Добавить PromoItem: 1 новый класс, реализует все три метода — нигде else добавлять не нужно.
 interface OrderComponent {
     String     name();
     BigDecimal total();
+    BigDecimal discount();
+    BigDecimal tax();
 }

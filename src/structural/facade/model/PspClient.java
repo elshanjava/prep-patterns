@@ -7,4 +7,9 @@ public final class PspClient {
         System.out.println("  [psp] authorize " + order.amountCents() + " @ rate " + rate);
         return new Authorization("auth_" + order.customer(), order.amountCents());
     }
+
+    public Authorization refund(String authId, long amountCents) {
+        System.out.println("  [psp] refund " + amountCents + " from " + authId);
+        return new Authorization("refund_" + authId, amountCents);
+    }
 }

@@ -5,31 +5,35 @@ import java.util.List;
 
 public class CompositeDemo {
     public static void main(String[] args) {
-        System.out.println("== Composite [GOOD] — единый интерфейс для листа и дерева ==");
+        System.out.println("== Composite [GOOD] — единый интерфейс, ноль instanceof ==");
+        System.out.println();
 
-        var widget    = new LineItem("Widget",       new BigDecimal("10.00"));
-        var gadget    = new LineItem("Gadget",        new BigDecimal("25.00"));
-        var accessory = new LineItem("Accessory",     new BigDecimal("5.00"));
-        var addon     = new LineItem("Premium addon", new BigDecimal("15.00"));
+        var widget    = new LineItem("Widget",       new BigDecimal("9.99"));
+        var gadget    = new LineItem("Gadget",        new BigDecimal("4.50"));
+        var giftCard  = new GiftCard("Gift Card",    new BigDecimal("5.00"));
+        var innerItem = new LineItem("Inner Widget",  new BigDecimal("2.00"));
+        var innerItem2= new LineItem("Inner Gadget",  new BigDecimal("3.00"));
 
-        // Бандл содержит бандл — рекурсия прозрачна для клиента
-        var starterPack = new Bundle("Starter Pack", List.of(widget, gadget));
-        var proPack     = new Bundle("Pro Bundle",   List.of(starterPack, accessory, addon));
+        var starterPack = new Bundle("Starter Pack",  List.of(innerItem, innerItem2));
+        var order       = new Bundle("Full Order",    List.of(widget, gadget, giftCard, starterPack));
 
-        // Клиент вызывает total() одинаково для листа и для дерева
         printComponent(widget);
+        printComponent(giftCard);     // карта: discount=0, tax=0 — всё в контракте
         printComponent(starterPack);
-        printComponent(proPack);
+        printComponent(order);
 
         System.out.println();
+        System.out.println("Клиент вызывает одни и те же 3 метода — не зная о типах внутри.");
+        System.out.println();
         System.out.println("Преимущества над bad:");
-        System.out.println("  - нет instanceof: полиморфизм через OrderComponent");
-        System.out.println("  - добавить GiftCard: новый класс implements OrderComponent — всё работает");
-        System.out.println("  - рекурсия живёт в Bundle, клиент её не видит и не дублирует");
-        System.out.println("  - discount(), tax(), export() — реализуй в том же месте, без рассыпных if");
+        System.out.println("  GiftCard добавлен: 1 файл (GiftCard.java), 0 изменений в Bundle");
+        System.out.println("  Нет 9 instanceof-веток: все 3 метода — полиморфизм через контракт");
+        System.out.println("  PromoItem, SubscriptionItem — тот же паттерн: 1 класс, всё работает");
+        System.out.println("  Компилятор гарантирует: каждый новый тип реализует total+discount+tax");
     }
 
     private static void printComponent(OrderComponent c) {
-        System.out.printf("%-14s total: %s%n", c.name(), c.total());
+        System.out.printf("%-16s total=%6s  discount=%5s  tax=%5s%n",
+                c.name(), c.total(), c.discount(), c.tax());
     }
 }
