@@ -2,13 +2,13 @@ package creational.abstractfactory.bad;
 
 import creational.abstractfactory.model.*;
 
-// if/else на строке провайдера вместо фабрики.
-// Можно случайно скрестить StripeClient с AdyenWebhookParser — компилятор не заметит.
-// Добавить Braintree? — найди все такие if/else по кодовой базе и добавь ветку.
+// if/else вместо фабрики: компилятор не мешает перепутать провайдеров.
+// Брайнтри добавлен — но кто-то скопипастил не ту строчку в пятницу.
+// Добавить 4-й провайдер: найди все if/else по кодовой базе и добавь ветку.
 final class BadPspSetup {
 
     static void run(String provider, long amountCents, String rawWebhook) {
-        PspClient client;
+        PspClient     client;
         WebhookParser parser;
 
         if ("stripe".equals(provider)) {
@@ -17,10 +17,14 @@ final class BadPspSetup {
 
         } else if ("adyen".equals(provider)) {
             client = new AdyenClient();
-            // — вот тут инженер в пятницу скопипастил не ту строчку:
-            parser = new StripeWebhookParser();  // ← Adyen-клиент + Stripe-парсер!
+            parser = new StripeWebhookParser();     // ← Adyen + Stripe-парсер! (пятничный копипаст)
             // Компилятор молчит: оба реализуют WebhookParser.
-            // Баг проявится только в runtime при первом вебхуке от Adyen.
+            // Баг проявится только при первом вебхуке от Adyen в проде.
+
+        } else if ("braintree".equals(provider)) {
+            client = new StripeClient();            // ← тоже ошибка: StripeClient для Braintree!
+            parser = new StripeWebhookParser();     // ← и парсер тоже Stripe
+            // Два мисмэтча в одном блоке — добавляли второпях к дедлайну.
 
         } else {
             throw new IllegalArgumentException("unknown provider: " + provider);
@@ -28,6 +32,8 @@ final class BadPspSetup {
 
         client.charge(amountCents);
         WebhookEvent event = parser.parse(rawWebhook);
-        System.out.println("  parsed: " + event.type());
+        System.out.println("  event type: " + event.type()
+                           + (event.type().startsWith("stripe") && provider.equals("adyen")
+                              ? "  ← WRONG! Adyen body parsed with Stripe parser" : ""));
     }
 }

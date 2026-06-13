@@ -1,3 +1,4 @@
 package behavioral.state.bad;
 
-enum PaymentStatus { PENDING, AUTHORIZED, REFUNDED }
+// Добавление CAPTURED = правь ВСЕ switch-блоки в BadPayment: capture(), refund(), cancel()
+enum PaymentStatus { PENDING, AUTHORIZED, CAPTURED, REFUNDED }

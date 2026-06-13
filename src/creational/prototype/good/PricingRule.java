@@ -2,36 +2,49 @@ package creational.prototype.good;
 
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-// Глубокая копия: withTier() и deepCopy() возвращают НОВЫЙ объект с НОВОЙ картой.
-// Оригинал остаётся неизменным — ни один вызов не мутирует чужое состояние.
+// Глубокая копия: withTier(), blockCountry(), deepCopy() — все возвращают НОВЫЙ объект.
+// Оригинал никогда не мутирует. Безопасно передавать параллельным воркерам.
 final class PricingRule {
     private final Map<String, BigDecimal> tiers;
+    private final List<String>            blockedCountries;
 
-    private PricingRule(Map<String, BigDecimal> tiers) {
-        // Защитная копия: внешний caller не может мутировать наш state через переданную map
-        this.tiers = Collections.unmodifiableMap(new HashMap<>(tiers));
+    private PricingRule(Map<String, BigDecimal> tiers, List<String> blockedCountries) {
+        this.tiers            = Collections.unmodifiableMap(new HashMap<>(tiers));
+        this.blockedCountries = Collections.unmodifiableList(new ArrayList<>(blockedCountries));
     }
 
-    static PricingRule of(Map<String, BigDecimal> tiers) {
-        return new PricingRule(tiers);
+    static PricingRule of(Map<String, BigDecimal> tiers, List<String> blockedCountries) {
+        return new PricingRule(tiers, blockedCountries);
     }
 
-    // Создаёт новое правило с добавленным/изменённым тиром — оригинал не тронут
+    // Новый объект с добавленным тиром — оригинал не тронут
     PricingRule withTier(String key, BigDecimal value) {
-        var copy = new HashMap<>(tiers);
-        copy.put(key, value);
-        return new PricingRule(copy);
+        var t = new HashMap<>(tiers);
+        t.put(key, value);
+        return new PricingRule(t, blockedCountries);
     }
 
-    // Полная копия для передачи в изолированный воркер
-    PricingRule deepCopy() {
-        return new PricingRule(tiers);
+    // Новый объект с добавленной страной
+    PricingRule blockCountry(String country) {
+        var c = new ArrayList<>(blockedCountries);
+        c.add(country);
+        return new PricingRule(tiers, c);
     }
 
-    Map<String, BigDecimal> tiers() { return tiers; }
+    // Полная независимая копия для воркера
+    PricingRule deepCopy() { return new PricingRule(tiers, blockedCountries); }
 
-    @Override public String toString() { return "PricingRule" + tiers; }
+    boolean isBlocked(String country)        { return blockedCountries.contains(country); }
+    BigDecimal tierRate(String tier)          { return tiers.getOrDefault(tier, tiers.get("standard")); }
+    Map<String, BigDecimal> tiers()          { return tiers; }
+    List<String> blockedCountries()          { return blockedCountries; }
+
+    @Override public String toString() {
+        return "PricingRule{tiers=" + tiers + ", blocked=" + blockedCountries + "}";
+    }
 }
