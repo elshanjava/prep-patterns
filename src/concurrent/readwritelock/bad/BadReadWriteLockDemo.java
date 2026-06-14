@@ -17,11 +17,13 @@ public class BadReadWriteLockDemo {
         long start = System.currentTimeMillis();
 
         for (int i = 0; i < 10; i++) {
-            readers.add(Thread.ofPlatform().start(() -> {
+            Thread t = new Thread(() -> {
                 FxRate rate = cache.getRate("EUR/USD");
                 System.out.println("  [reader] EUR/USD = " + (rate != null ? rate.rate() : "null")
                         + "  concurrent=" + (BadFxRateCache.concurrentReads.get() + 1));
-            }));
+            });
+            t.start();
+            readers.add(t);
         }
 
         for (Thread t : readers) t.join();
