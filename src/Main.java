@@ -44,11 +44,23 @@ import behavioral.templatemethod.bad.BadTemplateMethodDemo;
 import behavioral.templatemethod.good.TemplateMethodDemo;
 import behavioral.visitor.bad.BadVisitorDemo;
 import behavioral.visitor.good.VisitorDemo;
+import concurrent.threadpool.bad.BadThreadPoolDemo;
+import concurrent.threadpool.good.ThreadPoolDemo;
+import concurrent.producerconsumer.bad.BadProducerConsumerDemo;
+import concurrent.producerconsumer.good.ProducerConsumerDemo;
+import concurrent.completablefuture.bad.BadCompletableFutureDemo;
+import concurrent.completablefuture.good.CompletableFutureDemo;
+import concurrent.circuitbreaker.bad.BadCircuitBreakerDemo;
+import concurrent.circuitbreaker.good.CircuitBreakerDemo;
+import concurrent.retry.bad.BadRetryDemo;
+import concurrent.retry.good.RetryDemo;
+import concurrent.readwritelock.bad.BadReadWriteLockDemo;
+import concurrent.readwritelock.good.ReadWriteLockDemo;
 
 // Прогоняет демонстрацию каждого паттерна (bad + good).
 // Каждый *Demo также запускается отдельно — у него свой main().
 public class Main {
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws Exception {
         // --- Creational ---
         BadSingletonDemo.main(args);       SingletonDemo.main(args);
         BadFactoryDemo.main(args);         FactoryDemo.main(args);
@@ -77,5 +89,13 @@ public class Main {
         BadStrategyDemo.main(args);       StrategyDemo.main(args);
         BadTemplateMethodDemo.main(args); TemplateMethodDemo.main(args);
         BadVisitorDemo.main(args);        VisitorDemo.main(args);
+
+        // --- Concurrent ---
+        BadThreadPoolDemo.main(args);         ThreadPoolDemo.main(args);
+        BadProducerConsumerDemo.main(args);   ProducerConsumerDemo.main(args);
+        BadCompletableFutureDemo.main(args);  CompletableFutureDemo.main(args);
+        BadCircuitBreakerDemo.main(args);     CircuitBreakerDemo.main(args);
+        BadRetryDemo.main(args);              RetryDemo.main(args);
+        BadReadWriteLockDemo.main(args);      ReadWriteLockDemo.main(args);
     }
 }
