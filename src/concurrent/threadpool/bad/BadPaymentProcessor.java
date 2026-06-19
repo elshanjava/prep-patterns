@@ -13,7 +13,7 @@ final class BadPaymentProcessor {
     void process(long amountCents) {
         Thread t = new Thread(() -> {
             try { Thread.sleep(10); } catch (InterruptedException ignored) {}
-            System.out.println("  [thread-" + Thread.currentThread().threadId() + "] processed " + amountCents);
+            System.out.println("  [thread-" + Thread.currentThread().getId() + "] processed " + amountCents);
         });
         createdThreads.incrementAndGet();
         t.start();

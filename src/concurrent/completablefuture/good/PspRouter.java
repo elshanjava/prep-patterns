@@ -9,7 +9,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 final class PspRouter {
-    private final ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
+    // Java 17: виртуальных потоков ещё нет (они с Java 21), поэтому обычный кэширующий пул.
+    // Для I/O-bound вызовов PSP (потоки спят на сети) cached pool достаточно.
+    private final ExecutorService pool = Executors.newCachedThreadPool();
 
     // anyOf: все 3 PSP параллельно — берём первый ответ (~100ms вместо ~300ms)
     CompletableFuture<PspResponse> route(Payment p) {
