@@ -11,7 +11,7 @@ import java.util.Map;
 // Оригинал никогда не мутирует. Безопасно передавать параллельным воркерам.
 final class PricingRule {
     private final Map<String, BigDecimal> tiers;
-    private final List<String>            blockedCountries;
+    private final List<String> blockedCountries;
 
     private PricingRule(Map<String, BigDecimal> tiers, List<String> blockedCountries) {
         this.tiers            = Collections.unmodifiableMap(new HashMap<>(tiers));
