@@ -3,7 +3,7 @@ package coding.creational.factory;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class CsvExport implements FileExporter {
+public class CsvExporter implements FileExporter {
 
   @Override
   public String export(List<Row> rows) {

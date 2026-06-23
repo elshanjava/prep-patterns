@@ -18,7 +18,7 @@
 
 ## Creational
 
-### 🔴 Singleton — ✅ сделано
+### 🔴 Singleton 
 > Готово (3 варианта: DCL, holder, enum). Добавь 4-й — **настоящий eager**: `private static final INSTANCE = new ...()`, создаётся при загрузке класса безусловно.
 
 ### 🔴 Factory Method

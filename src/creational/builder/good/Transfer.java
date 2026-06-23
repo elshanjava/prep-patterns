@@ -50,10 +50,8 @@ public final class Transfer {
     }
 
     // ── Ступени: каждый интерфейс открывает доступ только к следующему обязательному полю ──
-    public interface FromStep   {
-        ToStep from(String from); }
-    public interface ToStep     {
-        AmountStep to(String to); }
+    public interface FromStep   { ToStep from(String from); }
+    public interface ToStep     { AmountStep to(String to); }
     public interface AmountStep {
         OptionalStep amountCents(long amountCents); }
 

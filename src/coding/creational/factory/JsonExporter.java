@@ -3,7 +3,7 @@ package coding.creational.factory;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class JsonExport implements FileExporter {
+public class JsonExporter implements FileExporter {
 
   @Override
   public String export(List<Row> rows) {

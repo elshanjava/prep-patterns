@@ -1,22 +1,22 @@
 package coding.creational.singleton;
 
-public class SingletonEagerExample {
+public class SingletonLazyDclExample {
 
-    private static volatile SingletonEagerExample INSTANCE;
+    private static volatile SingletonLazyDclExample INSTANCE;
 
     private final String name;
     private final Integer age;
 
-    private SingletonEagerExample() {
+    private SingletonLazyDclExample() {
         this.name = System.getProperty("user.name");
         this.age = Integer.valueOf(System.getProperty("user.age"));
     }
 
-    public static SingletonEagerExample getInstance() {
+    public static SingletonLazyDclExample getInstance() {
         if (INSTANCE == null) {
-            synchronized(SingletonEagerExample.class) {
+            synchronized(SingletonLazyDclExample.class) {
                 if (INSTANCE == null) {
-                    INSTANCE = new SingletonEagerExample();
+                    INSTANCE = new SingletonLazyDclExample();
                 }
             }
         }
