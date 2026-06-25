@@ -5,7 +5,7 @@ public class TreeType {
     private final String color;
     private final String texture;
 
-    public TreeType(String name, String color, String texture) {
+    TreeType(String name, String color, String texture) {
         this.name = name;
         this.color = color;
         this.texture = texture;
