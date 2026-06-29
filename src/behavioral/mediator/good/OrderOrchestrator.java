@@ -27,6 +27,7 @@ final class OrderOrchestrator implements OrderMediator {
     // Все события жизненного цикла заказа обрабатываются здесь.
     // Каждый участник (InventoryService и др.) знает только об OrderMediator,
     // а не обо всех остальных участниках напрямую.
+    @Override
     public void notify(String event, Order order) {
         audit.log(event, order);          // аудит каждого события
         switch (event) {
