@@ -13,7 +13,9 @@ final class BadPspClient {
     private final AtomicInteger callCount = new AtomicInteger();
     private final int failAfter;
 
-    BadPspClient(int failAfter) { this.failAfter = failAfter; }
+    BadPspClient(int failAfter) {
+      this.failAfter = failAfter;
+    }
 
     String charge(String paymentId, long amount) throws InterruptedException {
         totalCalls.incrementAndGet();
