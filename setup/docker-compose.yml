@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16
+    container_name: fintech-db
+    environment:
+      POSTGRES_USER: fintech
+      POSTGRES_PASSWORD: fintech
+      POSTGRES_DB: fintech
+    ports:
+      # 5432 на хосте часто занят локальным Postgres — берём 5433.
+      # Переопределить: PG_PORT=5555 docker compose up -d
+      - "${PG_PORT:-5433}:5432"
+    volumes:
+      # Официальный образ прогоняет всё из этой папки по алфавиту при ПЕРВОМ старте:
+      #   01_schema.sql -> 02_seed.sql
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fintech -d fintech"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
