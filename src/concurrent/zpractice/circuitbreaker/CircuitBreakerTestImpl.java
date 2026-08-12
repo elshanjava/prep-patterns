@@ -37,12 +37,37 @@ final class CircuitBreakerTestImpl {
 
         try {
           T result = action.get();
-//          onSuccess();
-            return result;
+          onSuccess();
+          return result;
         } catch (Exception e) {
-//          onFailure();
-            throw e;
+          onFailure();
+          throw e;
         }
+    }
+
+    private void onSuccess() {
+        failureCount.set(0);
+        if (state.compareAndSet(State.HALF_OPEN, State.CLOSE)) {
+            System.out.println("  [circuit] → CLOSED (probe succeeded)");
+        };
+    }
+
+    private void onFailure() {
+        State s = state.get();
+        int f = failureCount.incrementAndGet();
+
+        if (s == State.HALF_OPEN) {
+            openedAt = System.currentTimeMillis();
+            if (state.compareAndSet(State.HALF_OPEN, State.OPEN)) {
+                System.out.println("  [circuit] → OPEN (probe failed)");
+            }
+        } else if (f > failureThreshold) {
+            openedAt = System.currentTimeMillis();
+            if (state.compareAndSet(State.CLOSE, State.OPEN)) {
+                System.out.println("  [circuit] → OPEN after " + f + " failures");
+            }
+        }
+
     }
 
     CircuitBreakerTestImpl.State state() { return state.get(); }

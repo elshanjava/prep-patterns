@@ -60,7 +60,10 @@ final class PspRouter {
 
     private CompletableFuture<PspResponse> callPsp(String name, long latencyMs, boolean healthy, Payment p) {
         return CompletableFuture.supplyAsync(() -> {
-                    try { Thread.sleep(latencyMs); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                    try { Thread.sleep(latencyMs);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                     if (!healthy) throw new RuntimeException(name + " unavailable");
                     System.out.println("  [" + name + "] responded for " + p.id());
                     return new PspResponse(name, latencyMs, true);
