@@ -47,7 +47,9 @@ final class PspRouter {
         var result = new CompletableFuture<PspResponse>();
 
         for (var call : calls) {
-            call.thenAccept(r -> { if (r.success()) result.complete(r); });
+            call.thenAccept(r -> {
+                if (r.success()) result.complete(r);
+            });
         }
 
         // когда завершились ВСЕ, а result так и не заняли — значит никто не преуспел

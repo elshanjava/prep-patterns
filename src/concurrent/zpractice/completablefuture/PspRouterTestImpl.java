@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 public class PspRouterTestImpl {
 
@@ -18,6 +19,18 @@ public class PspRouterTestImpl {
 
     return firstSuccessful(List.of(stripe, braintree, adyen));
   }
+
+    CompletableFuture<List<PspResponse>> allQuotes (Payment p) {
+        var stripe = callPsp("stripe", 100, true, p);
+        var braintree = callPsp("braintree", 300, true, p);
+        var adyen = callPsp("adyen", 90, true, p);
+
+        return CompletableFuture.allOf(stripe, braintree, adyen)
+                .thenApply(ignored -> Stream.of(stripe, braintree, adyen)
+                        .map(CompletableFuture::join)
+                        .filter(PspResponse::success)
+                        .toList());
+    }
 
   private CompletableFuture<PspResponse> firstSuccessful(List<CompletableFuture<PspResponse>> calls) {
     var result = new CompletableFuture<PspResponse>();
