@@ -3,8 +3,14 @@ plugins {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    // toolchain, а НЕ sourceCompatibility: последняя даёт javac -source/-target, который
+    // не подменяет библиотеку классов — код собирается против API текущего JDK и молча
+    // проезжает мимо заявленной версии. toolchain фиксирует и компилятор, и API.
+    // 21, потому что ExecutorService реализует AutoCloseable только с Java 19
+    // (try-with-resources над пулом в tdd-тестах).
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 sourceSets {

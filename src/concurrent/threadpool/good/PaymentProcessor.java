@@ -15,7 +15,7 @@ final class PaymentProcessor implements AutoCloseable {
 
     private String process(long amountCents) throws InterruptedException {
         Thread.sleep(10);
-        return "ok: thread=" + Thread.currentThread().getId() + " amount=" + amountCents;
+        return "ok: thread=" + Thread.currentThread().threadId() + " amount=" + amountCents;
     }
 
     public void close() throws InterruptedException {
