@@ -48,7 +48,7 @@ public class ExecutorPipelineDemo {
                 if (me.equals("main")) byCaller.incrementAndGet();   // сработал CallerRunsPolicy
                 try {
                     Thread.sleep(50);                                // обработка платежа
-                } catch (InterruptedException e) {
+                    if (me.equals("main")) byCaller.incrementAndGet();     } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
                 }

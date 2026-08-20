@@ -22,7 +22,6 @@ public class PaymentPipelineTestImpl {
     void shutdown(int consumersQuantity) throws InterruptedException {
         for (int i = 0; i < consumersQuantity; i++) {
             queue.put(POISON);
-
         }
         System.out.println("  [producer] отправил " + consumersQuantity + " ядовитых пилюль");
     }

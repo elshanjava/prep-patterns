@@ -67,8 +67,6 @@ public class PspRouterTestImpl {
           System.out.println("  [" + name + "] FAILED: " + rootMessage(ex));
           return new PspResponse(name, -1, false);
         });
-
-
   }
 
   private String rootMessage(Throwable ex) {
