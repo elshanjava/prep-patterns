@@ -32,10 +32,9 @@ public class ExecutorServiceDemo {
 
                 threadPoolExecutor.execute(() -> {
                     String me = Thread.currentThread().getName();
-                    if (me.equals("main")) byCaller.incrementAndGet();
+                    if (me.equals("main")) byCaller.incrementAndGet();   // считаем ОДИН раз
                     try {
                         Thread.sleep(50);                                // обработка платежа
-                        if (me.equals("main")) byCaller.incrementAndGet();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         return;

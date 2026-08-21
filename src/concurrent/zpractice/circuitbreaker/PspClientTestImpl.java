@@ -27,7 +27,10 @@ public class PspClientTestImpl {
                     throw new RuntimeException("PSP unavailable");
                 }
                 return "charged: " + paymentId;
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
+                // Именно InterruptedException, а не Exception: иначе сюда попадает
+                // "PSP unavailable" выше, поток спуриозно помечается прерванным,
+                // и следующий Thread.sleep падает мгновенно вместо симуляции сети.
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }

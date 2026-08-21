@@ -4,6 +4,9 @@ import java.util.List;
 import java.util.concurrent.*;
 
 final class PaymentProcessor implements AutoCloseable {
+    // Число потоков ограничено, а вот ОЧЕРЕДЬ — нет: внутри LinkedBlockingQueue без предела.
+    // Значит submit() не заблокируется никогда и backpressure отсутствует.
+    // Как ограничить очередь — в BoundedPoolDemo (нужен конструктор ThreadPoolExecutor).
     private final ExecutorService pool =
             Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
 

@@ -8,12 +8,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 final class PspRouter {
-    // Java 17: виртуальных потоков ещё нет (они с Java 21), поэтому обычный кэширующий пул.
-    // Для I/O-bound вызовов PSP (потоки спят на сети) cached pool достаточно.
-    private final ExecutorService pool = Executors.newCachedThreadPool();
+    // Вызовы к PSP — I/O-bound: поток спит на сети, а не считает. Проект на Java 21,
+    // поэтому берём виртуальные потоки: их можно держать миллион, и размер пула
+    // подбирать не нужно вовсе. На cached pool пришлось бы считать по формуле Литтла.
+    private final ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
 
     // Бюджет на один PSP: превысил — считаем его отвалившимся, дальше не ждём.
     private static final long TIMEOUT_MS = 150;
@@ -43,26 +45,41 @@ final class PspRouter {
     // anyOf берёт первого ЗАВЕРШИВШЕГОСЯ (в т.ч. с ошибкой), а нам нужен первый УСПЕШНЫЙ.
     // Собираем вручную: каждый успех пытается "занять" result; complete() идемпотентен —
     // первый победитель фиксируется, остальные вызовы игнорируются.
+    //
+    // Считаем отчитавшихся сами, а не через allOf().thenRun(). Причина: thenAccept и thenRun
+    // при ИСКЛЮЧИТЕЛЬНОМ завершении пропускаются. Стоит передать сюда фьючу, завершившуюся
+    // ошибкой (а не sentinel'ом из callPsp), — и обе ветки молчат, result не завершается
+    // никогда, а вызывающий висит на join() вечно. whenComplete срабатывает на ОБОИХ исходах.
     private CompletableFuture<PspResponse> firstSuccessful(List<CompletableFuture<PspResponse>> calls) {
         var result = new CompletableFuture<PspResponse>();
 
-        for (var call : calls) {
-            call.thenAccept(r -> {
-                if (r.success()) result.complete(r);
-            });
+        if (calls.isEmpty()) {
+            result.completeExceptionally(new IllegalArgumentException("no PSPs to call"));
+            return result;
         }
 
-        // когда завершились ВСЕ, а result так и не заняли — значит никто не преуспел
-        CompletableFuture.allOf(calls.toArray(CompletableFuture[]::new))
-                .thenRun(() -> result.completeExceptionally(
-                        new RuntimeException("all PSPs failed")));
+        var remaining = new AtomicInteger(calls.size());
+
+        for (var call : calls) {
+            call.whenComplete((r, ex) -> {
+                if (ex == null && r != null && r.success()) {
+                    result.complete(r);
+                }
+                // Последний отчитавшийся закрывает вопрос. Если победитель уже занял
+                // result, completeExceptionally просто вернёт false и ничего не изменит.
+                if (remaining.decrementAndGet() == 0) {
+                    result.completeExceptionally(new RuntimeException("all PSPs failed"));
+                }
+            });
+        }
 
         return result;
     }
 
     private CompletableFuture<PspResponse> callPsp(String name, long latencyMs, boolean healthy, Payment p) {
         return CompletableFuture.supplyAsync(() -> {
-                    try { Thread.sleep(latencyMs);
+                    try {
+                        Thread.sleep(latencyMs);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }

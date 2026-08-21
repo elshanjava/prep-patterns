@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class PspRouterTestImpl {
@@ -35,15 +36,26 @@ public class PspRouterTestImpl {
   private CompletableFuture<PspResponse> firstSuccessful(List<CompletableFuture<PspResponse>> calls) {
     var result = new CompletableFuture<PspResponse>();
 
-    for (var call: calls) {
-      call.thenAccept(r -> {
-        if (r.success()) result.complete(r);
-      });
+    if (calls.isEmpty()) {
+      result.completeExceptionally(new IllegalArgumentException("no PSPs to call"));
+      return result;
     }
 
-    CompletableFuture.allOf(calls.toArray(CompletableFuture[]::new))
-        .thenRun(() -> result.completeExceptionally(new RuntimeException("all PSPs failed")));
+    var remaining = new AtomicInteger(calls.size());
 
+    for (var call: calls) {
+      // whenComplete, а не thenAccept + allOf().thenRun(): обе те ветки ПРОПУСКАЮТСЯ
+      // при исключительном завершении. Передай сюда фьючу, упавшую без sentinel'а, —
+      // result не завершится никогда, и вызывающий повиснет на join() навсегда.
+      call.whenComplete((r, ex) -> {
+        if (ex == null && r != null && r.success()) {
+          result.complete(r);                      // complete идемпотентен: победитель один
+        }
+        if (remaining.decrementAndGet() == 0) {
+          result.completeExceptionally(new RuntimeException("all PSPs failed"));
+        }
+      });
+    }
 
     return result;
   }
@@ -62,7 +74,8 @@ public class PspRouterTestImpl {
       System.out.println('[' + name + ']' + " respond from " + p.id());
       return new PspResponse(name, latency, true);
     }, pool)
-        .orTimeout(TIMEOUT, TimeUnit.MICROSECONDS)
+        .orTimeout(TIMEOUT, TimeUnit.MILLISECONDS)   // МИЛЛИ-, не МИКРО-: 150 мкс = 0.15 мс,
+                                                     // по такому бюджету отваливались ВСЕ PSP
         .exceptionally(ex -> {
           System.out.println("  [" + name + "] FAILED: " + rootMessage(ex));
           return new PspResponse(name, -1, false);

@@ -29,7 +29,8 @@ public class ThreadPoolDemo {
         System.out.println("Преимущества над bad:");
         System.out.println("  - 20 платежей → " + poolSize + " потоков максимум, не 20");
         System.out.println("  - Future: результат + обработка ошибок");
-        System.out.println("  - backpressure: submit() блокируется если очередь полна");
+        System.out.println("  - НО backpressure тут НЕТ: у newFixedThreadPool очередь");
+        System.out.println("    безгранична, submit() не блокируется никогда — см. BoundedPoolDemo");
         System.out.println("  - graceful shutdown через AutoCloseable");
         System.out.println("  - в Spring: @Async + ThreadPoolTaskExecutor — тот же паттерн");
     }

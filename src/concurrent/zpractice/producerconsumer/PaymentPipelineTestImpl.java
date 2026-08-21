@@ -1,6 +1,5 @@
 package concurrent.zpractice.producerconsumer;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class PaymentPipelineTestImpl {
