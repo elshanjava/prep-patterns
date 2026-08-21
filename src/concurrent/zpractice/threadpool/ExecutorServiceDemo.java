@@ -1,4 +1,4 @@
-package concurrent.zpractice.producerconsumer;
+package concurrent.zpractice.threadpool;
 
 import concurrent.producerconsumer.model.Payment;
 
