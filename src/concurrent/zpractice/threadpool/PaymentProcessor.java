@@ -6,7 +6,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-public class PaymentProcessor {
+public class PaymentProcessor implements AutoCloseable {
     private final ExecutorService pool =
             Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
 
@@ -21,6 +21,7 @@ public class PaymentProcessor {
                 .toList();
     }
 
+    @Override
     public void close() throws InterruptedException {
         pool.shutdown();
         if (!pool.awaitTermination(5, TimeUnit.SECONDS)){

@@ -12,7 +12,7 @@ public class BulkheadDemo {
 
     private static final int  POOL        = 10;   // общий пул сервиса
     private static final int  REQUESTS    = 20;   // запросов к тормозящему PSP
-    private static final long PSP_MS      = 200;
+    private static final long PSP_MS      = 200;  // PSP отвечает медленно
     private static final int  MAX_TO_PSP  = 5;    // сколько одновременно пускаем к PSP
     private static final long WAIT_MS     = 50;   // сколько ждём разрешения, потом отказ
 

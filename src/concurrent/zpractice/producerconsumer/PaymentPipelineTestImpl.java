@@ -4,7 +4,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class PaymentPipelineTestImpl {
     private static final int CAPACITY = 5;
-    private static final Payment POISON =
+    public static final Payment POISON =
             new Payment("__POISON__", 0);
 
     private final LinkedBlockingQueue<Payment> queue = new LinkedBlockingQueue<>(CAPACITY);
