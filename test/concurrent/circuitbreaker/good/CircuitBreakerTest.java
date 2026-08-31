@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.*;
@@ -157,9 +158,15 @@ class CircuitBreakerTest {
                 });
             }
 
-            probeStarted.await();                // победитель внутри действия
-            allRejected.await();                 // остальные семеро уже отказаны
-            releaseProbe.countDown();            // отпускаем пробу
+            try {
+                // с таймаутом: без него сломанный брейкер вешает сборку вместо падения
+                assertThat(probeStarted.await(5, TimeUnit.SECONDS)).isTrue();  // победитель внутри
+                assertThat(allRejected.await(5, TimeUnit.SECONDS)).isTrue();   // семеро отказаны
+            } finally {
+                // в finally: иначе упавший ассёрт оставит пробу на await(),
+                // а pool.close() будет ждать её завершения до суток
+                releaseProbe.countDown();
+            }
         }
 
         // Ровно один поток дошёл до "сети" — ровно ради этого паттерн и существует:

@@ -57,6 +57,7 @@ class PaymentPipelineTest {
 
         // Не прошёл за 200ms — значит стоит на put(), а не потерял платёж.
         assertThat(passed.await(200, TimeUnit.MILLISECONDS)).isFalse();
+        assertThat(extra.getState()).isEqualTo(Thread.State.WAITING);   // припаркован, см. ниже
 
         pipeline.consume();                                  // освободили одно место
 
@@ -67,6 +68,17 @@ class PaymentPipelineTest {
 
     // ── Consumer блокируется на пустой очереди, а не крутит CPU ──────────────
 
+    /**
+     * Двух защёлок мало. Замер показывает, что реализация с busy-wait
+     * (while ((p = queue.poll()) == null) {}) проходит ОБЕ проверки на защёлке
+     * один в один — и при этом жжёт 204 ms процессорного времени за те же 200 ms
+     * ожидания, то есть ядро на 100%. Отличить их можно только по состоянию потока:
+     *
+     *   take()     -> LockSupport.park()  -> WAITING,  CPU 0 ms
+     *   busy-wait  -> крутится в цикле    -> RUNNABLE, CPU 204 ms
+     *
+     * Поэтому здесь проверяется getState(), а не только факт ожидания.
+     */
     @Test
     void consume_blocksWhenQueueIsEmpty_untilPaymentArrives() throws InterruptedException {
         var got = new CountDownLatch(1);
@@ -81,6 +93,10 @@ class PaymentPipelineTest {
         consumer.start();
 
         assertThat(got.await(200, TimeUnit.MILLISECONDS)).isFalse();
+        // WAITING, а не RUNNABLE — поток снят с планировщика и не тратит такты.
+        // WAITING без таймаута, потому что take() ждёт без срока; у poll(timeout)
+        // на этом месте было бы TIMED_WAITING.
+        assertThat(consumer.getState()).isEqualTo(Thread.State.WAITING);
 
         pipeline.produce(new Payment("pay-1", 100));
 
@@ -128,6 +144,7 @@ class PaymentPipelineTest {
 
         // offer() вернул бы false и пилюля пропала бы — consumer завис бы на take() навсегда.
         assertThat(sent.await(200, TimeUnit.MILLISECONDS)).isFalse();
+        assertThat(stopper.getState()).isEqualTo(Thread.State.WAITING);
 
         pipeline.consume();
 

@@ -72,11 +72,20 @@ final class RetryPolicy {
     }
 
     private long delayFor(int attempt) {
-        // Ограничиваем ПОКАЗАТЕЛЬ, а не результат. baseDelayMs * (1L << attempt) при большом
-        // attempt уходит в минус, Math.min пропускает отрицательное, и Thread.sleep падает.
-        // Сравнение с maxDelayMs >> shift гарантирует, что сдвиг не переполнится.
-        int  shift  = Math.min(attempt, 62);
-        long capped = baseDelayMs <= (maxDelayMs >> shift) ? (baseDelayMs << shift) : maxDelayMs;
+        // base * 2^attempt, но удвоением по шагам, а не одной формулой. Формула
+        // baseDelayMs * (long) Math.pow(2, attempt) при большом attempt переполняет long
+        // и уходит в МИНУС — Math.min пропустит отрицательное, и Thread.sleep упадёт
+        // с IllegalArgumentException: timeout value is negative. Цикл же обрывается
+        // на потолке раньше, чем успевает переполниться.
+        long delay = baseDelayMs;
+        for (int i = 0; i < attempt; i++) {
+            if (delay > maxDelayMs / 2) {   // следующее удвоение перевалит за потолок
+                delay = maxDelayMs;
+                break;
+            }
+            delay = delay * 2;
+        }
+        long capped = Math.min(delay, maxDelayMs);   // на случай baseDelayMs > maxDelayMs
 
         // nextLong(0) кидает IllegalArgumentException: bound must be positive.
         // Конфигурация "без джиттера" законна и падать не должна.

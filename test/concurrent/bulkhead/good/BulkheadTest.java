@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.*;
@@ -48,12 +49,19 @@ class BulkheadTest {
                     return "held";
                 }));
             }
-            holding.await();                          // оба разрешения заняты
+            try {
+                // с таймаутом: иначе сломанная переборка даёт вечное ожидание вместо
+                // красного теста — Gradle стоит, причина неизвестна
+                assertThat(holding.await(5, TimeUnit.SECONDS)).isTrue();
 
-            assertThatThrownBy(() -> bulkhead.call(() -> "third"))
-                    .isInstanceOf(BulkheadFullException.class);
-
-            release.countDown();
+                assertThatThrownBy(() -> bulkhead.call(() -> "third"))
+                        .isInstanceOf(BulkheadFullException.class);
+            } finally {
+                // ОБЯЗАТЕЛЬНО в finally. Упади ассёрт выше — воркеры остались бы
+                // на release.await(), а pool.close() ждёт завершения до суток:
+                // тест не упал бы, а повис.
+                release.countDown();
+            }
         }
 
         assertThat(bulkhead.rejectedCount()).isEqualTo(1);
@@ -75,19 +83,21 @@ class BulkheadTest {
                 }
                 return "held";
             }));
-            holding.await();
+            try {
+                assertThat(holding.await(5, TimeUnit.SECONDS)).isTrue();
 
-            long start = System.currentTimeMillis();
-            assertThatThrownBy(() -> bulkhead.call(() -> "rejected"))
-                    .isInstanceOf(BulkheadFullException.class);
-            long elapsed = System.currentTimeMillis() - start;
+                long start = System.currentTimeMillis();
+                assertThatThrownBy(() -> bulkhead.call(() -> "rejected"))
+                        .isInstanceOf(BulkheadFullException.class);
+                long elapsed = System.currentTimeMillis() - start;
 
-            // Ждали разрешение — но ограниченно. Смысл tryAcquire с таймаутом:
-            // отказ стоит waitMs, а не длительности зависшего вызова.
-            assertThat(elapsed).isGreaterThanOrEqualTo(100);
-            assertThat(elapsed).isLessThan(2_000);
-
-            release.countDown();
+                // Ждали разрешение — но ограниченно. Смысл tryAcquire с таймаутом:
+                // отказ стоит waitMs, а не длительности зависшего вызова.
+                assertThat(elapsed).isGreaterThanOrEqualTo(100);
+                assertThat(elapsed).isLessThan(2_000);
+            } finally {
+                release.countDown();
+            }
         }
     }
 
