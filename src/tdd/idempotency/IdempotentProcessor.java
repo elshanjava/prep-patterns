@@ -2,27 +2,37 @@ package tdd.idempotency;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 
 public class IdempotentProcessor {
 
-    private final ConcurrentHashMap<String, Object> results = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Object> locks   = new ConcurrentHashMap<>();
+    // Одна мапа: Future играет роль И кэша, И "замка".
+    // Первый поток кладёт FutureTask через putIfAbsent и запускает его;
+    // конкурентные потоки получают ТОТ ЖЕ Future и ждут результат на get().
+    // exactly-once достаётся бесплатно, а само действие выполняется ВНЕ лока мапы.
+    private final ConcurrentHashMap<String, Future<Object>> cache = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     public <T> T process(String requestId, Callable<T> action) throws Exception {
-        Object cached = results.get(requestId);
-        if (cached != null) return (T) cached;
+        Future<Object> future = cache.get(requestId);
+        if (future == null) {
+            FutureTask<Object> task = new FutureTask<>(action::call);
+            future = cache.putIfAbsent(requestId, task);   // атомарная гонка: кто первый — тот вставил
+            if (future == null) {                          // мы выиграли → нам и выполнять
+                future = task;
+                task.run();                                // выполняется здесь, лок мапы не держим
+            }
+        }
 
-        // per-key lock: разные requestId не блокируют друг друга
-        Object lock = locks.computeIfAbsent(requestId, k -> new Object());
-        synchronized (lock) {
-            // double-checked: пока мы ждали, другой поток мог уже выполнить
-            Object result = results.get(requestId);
-            if (result != null) return (T) result;
-
-            T computed = action.call(); // если бросает — не кэшируем
-            results.put(requestId, computed);
-            return computed;
+        try {
+            return (T) future.get();                       // опоздавшие ждут первого тут
+        } catch (ExecutionException e) {
+            cache.remove(requestId, future);               // упавшее действие НЕ кэшируем — повтор возможен
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception ex) throw ex;
+            throw e;
         }
     }
 }
