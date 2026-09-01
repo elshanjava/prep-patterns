@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,8 +30,11 @@ public class Bulkhead2Test {
 
         try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
             for (int i = 0; i < 2; i++) {
-                holding.countDown();
                 pool.submit(()-> bulkhead.call(()-> {
+                        // countDown ВНУТРИ действия: значит разрешение уже захвачено.
+                        // Снаружи (в main, до submit) он обнулял бы счётчик до того,
+                        // как воркеры вообще стартовали — await проскакивал бы впустую.
+                        holding.countDown();
                         try {
                             release.await();
                         } catch (InterruptedException e) {
@@ -39,28 +43,35 @@ public class Bulkhead2Test {
                         return "";
                 }));
             }
-            holding.await();
 
-            assertThatThrownBy(()->bulkhead.call(()-> "third"))
-                    .isInstanceOf(BulkheadFullException.class);
+            try {
+                // с таймаутом: сломанная переборка должна давать красный тест,
+                // а не вечное ожидание
+                assertThat(holding.await(5, TimeUnit.SECONDS)).isTrue();
 
-            release.countDown();
-
-            assertThat(bulkhead.rejectedCount()).isEqualTo(1);
-
+                assertThatThrownBy(()->bulkhead.call(()-> "third"))
+                        .isInstanceOf(BulkheadFullException.class);
+            } finally {
+                // в finally: упади ассёрт выше — воркеры остались бы на release.await(),
+                // а pool.close() ждёт завершения до суток. Тест повис бы вместо падения.
+                release.countDown();
+            }
         }
+
+        assertThat(bulkhead.rejectedCount()).isEqualTo(1);
     }
 
     @Test
     void rejectionTakesAboutWaitTimeout_notTheCallDuration() throws InterruptedException {
         var bulkhead = new Bulkhead(1, 100);
 
-        var holding = new CountDownLatch(2);
+        // 1, а не 2: воркер один, значит и сигнал будет ровно один.
+        var holding = new CountDownLatch(1);
         var release = new CountDownLatch(1);
 
         try (ExecutorService pool = Executors.newFixedThreadPool(1)) {
-            holding.countDown();
             pool.submit(()-> bulkhead.call(()-> {
+                holding.countDown();
                 try {
                     release.await();
                 } catch (InterruptedException e) {
@@ -68,18 +79,23 @@ public class Bulkhead2Test {
                 }
                 return "";
             }));
-            holding.await();
+
+            // Всё измерение — ВНУТРИ try. Снаружи pool.close() успел бы начать ждать
+            // воркера раньше, чем кто-либо отпустит release: гарантированный дедлок.
+            try {
+                assertThat(holding.await(5, TimeUnit.SECONDS)).isTrue();
+
+                long start = System.currentTimeMillis();
+                assertThatThrownBy(() -> bulkhead.call(() -> "rejected"))
+                        .isInstanceOf(BulkheadFullException.class);
+                long elapsed = System.currentTimeMillis() - start;
+
+                assertThat(elapsed).isGreaterThanOrEqualTo(100);
+                assertThat(elapsed).isLessThan(2_000);
+            } finally {
+                release.countDown();
+            }
         }
-
-        long start = System.currentTimeMillis();
-        assertThatThrownBy(() -> bulkhead.call(() -> "rejected"))
-                .isInstanceOf(BulkheadFullException.class);
-        long elapsed = System.currentTimeMillis() - start;
-
-        assertThat(elapsed).isGreaterThanOrEqualTo(100);
-        assertThat(elapsed).isLessThan(2_000);
-
-        release.countDown();
     }
 
     @Test
