@@ -127,11 +127,14 @@ public class CircuitBreaker2Test {
                 // а pool.close() будет ждать её завершения до суток
                 releaseProbe.countDown();
             }
-            assertThat(invocations.get()).isEqualTo(1);
-            assertThat(rejections.get()).isEqualTo(threads - 1);
-            assertThat(cb.state()).isEqualTo(CircuitBreaker.State.CLOSED);
-        }
+        }   // pool.close() (shutdown + awaitTermination) ДОЖИДАЕТСЯ пробы —
+            // только после этого переход HALF_OPEN → CLOSED гарантированно завершён.
+            // Если проверять state ВНУТРИ блока сразу после countDown(), главный поток
+            // обгоняет пробу (она ещё не сделала CAS в onSuccess) → флаки "was HALF_OPEN".
 
+        assertThat(invocations.get()).isEqualTo(1);
+        assertThat(rejections.get()).isEqualTo(threads - 1);
+        assertThat(cb.state()).isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
     private static void expectFailure(CircuitBreaker circuitBreaker) {

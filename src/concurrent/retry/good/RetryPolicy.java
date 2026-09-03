@@ -1,8 +1,8 @@
 package concurrent.retry.good;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
-import java.util.random.RandomGenerator;
 
 // Exponential backoff с jitter: baseDelay * 2^attempt + random(0, jitterMs), сверху cap.
 // Jitter разбивает синхронизацию: 1000 клиентов retryят в разные моменты — нет thundering herd.
@@ -25,7 +25,6 @@ final class RetryPolicy {
     private final long maxDelayMs;
     private final long jitterMs;
     private final Predicate<Exception> retryable;
-    private final RandomGenerator rng = RandomGenerator.getDefault();
 
     /** Повторяет любую ошибку — годится, только если вызывающий уверен, что все они временные. */
     RetryPolicy(int maxAttempts, long baseDelayMs, long maxDelayMs, long jitterMs) {
@@ -89,6 +88,8 @@ final class RetryPolicy {
 
         // nextLong(0) кидает IllegalArgumentException: bound must be positive.
         // Конфигурация "без джиттера" законна и падать не должна.
-        return capped + (jitterMs == 0 ? 0 : rng.nextLong(jitterMs));
+        // ThreadLocalRandom — всегда в java.base, без ServiceLoader-поиска (в отличие
+        // от RandomGenerator.getDefault(), который на кривом JDK не находит провайдер).
+        return capped + (jitterMs == 0 ? 0 : ThreadLocalRandom.current().nextLong(jitterMs));
     }
 }
