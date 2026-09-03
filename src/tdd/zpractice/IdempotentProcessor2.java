@@ -1,6 +1,5 @@
 package tdd.zpractice;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 
@@ -25,22 +24,28 @@ public class IdempotentProcessor2 {
 
   private final ConcurrentHashMap<String, Future<Object>> cache1 = new ConcurrentHashMap<>();
 
-  public <T> T process1 (String reqId, Callable<T> action) {
-    Future<Object> objectFuture = cache1.get(reqId);
-    if (objectFuture == null) {
-        FutureTask<Object> task = new FutureTask<>(action::call);
-        objectFuture = cache1.putIfAbsent(reqId, task);
-        if (objectFuture == null) {
-          objectFuture = task;
-          task.run();
-        }
+  @SuppressWarnings("unchecked")
+  public <T> T process1 (String reqId, Callable<T> action) throws Exception {
+    Future<Object> whatIWaitOn = cache1.get(reqId);
+      if (whatIWaitOn == null) {
+          FutureTask<Object> myTask = new FutureTask<>(action::call);
+          Future<Object> someoneElses = cache1.putIfAbsent(reqId, myTask);
+
+          if (someoneElses == null) {      // никого не было — вставился мой
+              whatIWaitOn = myTask;
+              myTask.run();                // раз мой, мне и выполнять
+          } else {                         // меня опередили — мой myTask выбрасываем
+              whatIWaitOn = someoneElses;
+          }
       }
-    try {
-      return (T) objectFuture.get();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+
+      try {
+      return (T) whatIWaitOn.get();
     } catch (ExecutionException e) {
-      throw new RuntimeException(e);
+      cache.remove(reqId, whatIWaitOn);               // упавшее действие НЕ кэшируем — повтор возможен
+      Throwable cause = e.getCause();
+      if (cause instanceof Exception ex) throw ex;
+      throw e;
     }
   }
 
