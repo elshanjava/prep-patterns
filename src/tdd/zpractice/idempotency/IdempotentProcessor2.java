@@ -40,13 +40,13 @@ public class IdempotentProcessor2 {
       }
 
       try {
-      return (T) whatIWaitOn.get();
-    } catch (ExecutionException e) {
-      cache.remove(reqId, whatIWaitOn);               // упавшее действие НЕ кэшируем — повтор возможен
-      Throwable cause = e.getCause();
-      if (cause instanceof Exception ex) throw ex;
-      throw e;
-    }
+        return (T) whatIWaitOn.get();
+      } catch (ExecutionException e) {
+        cache.remove(reqId, whatIWaitOn);               // упавшее действие НЕ кэшируем — повтор возможен
+        Throwable cause = e.getCause();
+        if (cause instanceof Exception ex) throw ex;
+        throw e;
+      }
   }
 
 //  Ensure process(requestId, action) processes each unique requestId exactly once, even under concurrent calls.
