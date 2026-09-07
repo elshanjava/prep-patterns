@@ -1,0 +1,22 @@
+# Один источник правды по форматированию. IntelliJ читает его сам
+# (Settings → Editor → Code Style → Enable EditorConfig support, включено по умолчанию)
+# и переопределяет глобальные настройки IDE для этого проекта.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.java]
+indent_style = space
+indent_size = 4
+continuation_indent_size = 8
+
+[*.{xml,gradle,yml,yaml,json}]
+indent_style = space
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false

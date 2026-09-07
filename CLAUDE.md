@@ -160,7 +160,7 @@ put блокируется, прерывание, нагрузка.
 
 ---
 
-## Правки в коммитнутом коде за сессию 2026-09-04 (не забыть закоммитить)
+## Правки в коммитнутом коде за сессию 2026-09-04 (закоммичены в 93621bc)
 
 - `concurrent/retry/good/RetryPolicy` — `RandomGenerator.getDefault()` заменён на
   `ThreadLocalRandom.current().nextLong(jitterMs)`. Причина: `getDefault()` ищет
@@ -188,12 +188,12 @@ printf 'gradle.beforeProject { p -> p.layout.buildDirectory = new File("/tmp/pre
 
 ## Открытые хвосты
 
-- `BoundedBlockingQueue2.size()` читает `count` без лока — гонка данных, `count` не `volatile`.
-  В `ArrayBlockingQueue.size()` захват лока есть.
-- Нет теста «`put` блокируется на полной очереди» — половина смысла bounded queue не покрыта.
-  Мутация «убрать `notFull.await()`» проходит незамеченной.
-- Нет тестов на прерывание (`interrupt` во время `await`) и на конкурентных
-  продюсеров/консьюмеров ни в одной из реализаций очереди.
+- Нет теста на **прерывание** (`interrupt` потока, стоящего на `await`) ни в одной
+  из реализаций очереди. В `BoundedBlockingQueueTest` `interrupt()` встречается только
+  как восстановление флага в `catch`, а не как проверяемое поведение.
+- `BoundedBlockingQueue2Test` тащит неиспользуемые импорты (`CountDownLatch`,
+  `AtomicInteger`, `AtomicReference`, `assertThatThrownBy`) — остались от прошлой
+  версии класса, снесённой при перезапуске каты.
 - Нет тестов у `LockingIdempotentProcessor`; спецификацию стоило бы гонять по обеим
   реализациям через `@ParameterizedTest` или общий базовый класс.
 - Пакеты `completablefuture`, `readwritelock`, `threadpool` без тестов.
