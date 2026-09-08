@@ -4,12 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class LoadBalancer2 {
+
+    private static final int MAX_CAPACITY = 10;
 
     private final Strategy strategy;
     private final List<String> servers = new ArrayList<>();
     private final AtomicInteger index = new AtomicInteger(0);
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     public LoadBalancer2() {
         this.strategy = Strategy.RANDOM;
@@ -20,16 +25,28 @@ public class LoadBalancer2 {
     }
 
     public void register(String s) {
-        if (servers.contains(s)) throw new IllegalArgumentException();
-        this.servers.add(s);
+        lock.writeLock().lock();
+        try {
+            if (s == null) throw new NullPointerException("Server must not be null");
+            if (servers.contains(s)) throw new IllegalArgumentException();
+            if (size() >= MAX_CAPACITY) throw new IllegalStateException();
+            servers.add(s);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
 
     public String get() {
-        if (servers.isEmpty()) throw new IllegalStateException();
-        if (strategy == Strategy.RANDOM) {
-            return random();
-        } else return roundRobin();
+        lock.readLock().lock();
+        try {
+            if (servers.isEmpty()) throw new IllegalStateException();
+            if (strategy == Strategy.RANDOM) {
+                return random();
+            } else return roundRobin();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     private String roundRobin() {
@@ -37,7 +54,12 @@ public class LoadBalancer2 {
     }
 
     public int size() {
-        return servers.size();
+        lock.readLock().lock();
+        try {
+            return servers.size();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     private String random() {
@@ -45,8 +67,13 @@ public class LoadBalancer2 {
     }
 
     public void deregister(String s) {
-        if (!servers.remove(s)) {
-            throw new IllegalArgumentException("Server not found: " + s);
+        lock.writeLock().lock();
+        try {
+            if (!servers.remove(s)) {
+                throw new IllegalArgumentException("Server not found: " + s);
+            }
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 }
