@@ -152,8 +152,16 @@ public class LoadBalancer2Test {
                      try {
                          ready.await();
                          for (int k = 0; k < 1000; k++) {     // ← churn весь тест
-                             try { loadBalancer2.deregister(server); } catch (IllegalArgumentException ignored) {}
-                             try { loadBalancer2.register(server);   } catch (IllegalArgumentException | IllegalStateException | NullPointerException ignored) {}
+                             try {
+                                 loadBalancer2.deregister(server);
+                             } catch (IllegalArgumentException ignored) {
+
+                             }
+                             try {
+                                 loadBalancer2.register(server);
+                             } catch (IllegalArgumentException | IllegalStateException | NullPointerException ignored) {
+
+                             }
                          }
                      } catch (IllegalArgumentException iae) {
 //                         expected
