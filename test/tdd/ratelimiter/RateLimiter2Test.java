@@ -83,7 +83,9 @@ public class RateLimiter2Test {
                      ready.countDown();
                      try {
                          ready.await();
-                         if (limiter2.allow("user-1")) allowed.incrementAndGet();
+                         for (int j = 0; j < 50; j++) {
+                             if (limiter2.allow("user-1")) allowed.incrementAndGet();
+                         }
                      } catch (InterruptedException ie) {
                          Thread.currentThread().interrupt();
                      } finally {
