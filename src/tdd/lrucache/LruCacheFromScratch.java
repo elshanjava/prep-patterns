@@ -32,7 +32,8 @@ public class LruCacheFromScratch<K, V> {
     private final class Node {
         K key;
         V value;
-        Node prev, next;
+        Node prev;
+        Node next;
 
         Node() {}                                  // для sentinel'ов (пустые)
         Node(K key, V value) { this.key = key; this.value = value; }
@@ -68,6 +69,7 @@ public class LruCacheFromScratch<K, V> {
             moveToFront(existing);
             return;                                // размер не растёт, вытеснять нечего
         }
+
         Node node = new Node(key, value);
         addFirst(node);                            // в свежий конец
         map.put(key, node);
