@@ -12,7 +12,7 @@ public class LruCache2<K, V> {
         Node prev;
         Node next;
 
-        Node() {};
+        Node() {}
         Node(K key, V value) {
             this.key = key;
             this.value = value;
