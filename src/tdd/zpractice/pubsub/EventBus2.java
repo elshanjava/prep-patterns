@@ -10,7 +10,7 @@ public class EventBus2 {
     private final Map<Class<?>, List<Consumer<Object>>> listeners = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    public <T> void subscribe(Class<T> type, Consumer<T> listener) {
+    public <T> void subscribe(Class<T> type, Consumer<? super T> listener) {
         listeners.computeIfAbsent(type, k -> new CopyOnWriteArrayList<>())
                 .add((Consumer<Object>) listener);
     }
