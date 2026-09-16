@@ -491,9 +491,13 @@ EventBus2Test:124                await(100, MILLISECONDS)
 Миллисекунды уместны только там, где ассёрт `isFalse()` (проверяем, что НЕ произошло).
 
 **Небезопасные коллекции в многопоточных тестах:**
-`UrlShortener2Test:75` (`HashSet`), `LoadBalancer2Test:48` (`HashSet` — там один поток,
-не критично). Правильно сделано в `LruCache2Test:89` и `EventBus2Test:95`
-(`Collections.synchronizedList`).
+`UrlShortener2Test` ИСПРАВЛЕН 2026-09-16 — `HashSet` заменён на
+`ConcurrentHashMap.newKeySet()`, после этого три полных прогона подряд зелёные.
+`LoadBalancer2Test:48` (`HashSet`) — там один поток, не критично.
+Правильно сделано в `LruCache2Test:89` и `EventBus2Test:95` (`Collections.synchronizedList`).
+
+**Осталось в `UrlShortener2Test.shorten_threadSafe`:** нет раундов (мутация
+`ConcurrentHashMap → HashMap` по-прежнему не ловится, 0 из 5) и `await(100, MILLISECONDS)`.
 
 ### Что закрепилось за прогоны
 
@@ -625,9 +629,10 @@ printf 'gradle.beforeProject { p -> p.layout.buildDirectory = new File("/tmp/pre
 
 ## Открытые хвосты
 
-**Сборка: 185 тестов, но ПРОГОН НЕСТАБИЛЬНЫЙ.** 2026-09-16 из четырёх полных прогонов
-один упал на `TransferService2Test.transfer_concurrent_nonOverdraft` (`await(100, MILLISECONDS)`).
-Реализации исправны — виноваты тесные таймауты в тестах, список в секции
+**Сборка: 185 тестов.** После замены `HashSet` на `ConcurrentHashMap.newKeySet()`
+в `UrlShortener2Test` — три полных прогона подряд зелёные (2026-09-16).
+Остаточный риск: тесные таймауты, один раз уронившие
+`TransferService2Test.transfer_concurrent_nonOverdraft`; список в секции
 «Многопоточные тесты: системная проблема».
 
 - **Три `await(1, TimeUnit.MILLISECONDS)`** в `PaymentPipeline2Test` (строки 50, 74, 116)

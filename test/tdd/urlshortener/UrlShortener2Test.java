@@ -7,10 +7,7 @@ import tdd.zpractice.urlshortener.UrlShortener2;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -72,7 +69,7 @@ public class UrlShortener2Test {
         int threads = 100;
         var ready = new CountDownLatch(threads);
         var done = new CountDownLatch(threads);
-        Set<String> codes = new HashSet<>();
+        Set<String> codes = ConcurrentHashMap.newKeySet();
 
         try (ExecutorService pool = Executors.newFixedThreadPool(threads)) {
             for (int i = 0; i < threads; i++) {
