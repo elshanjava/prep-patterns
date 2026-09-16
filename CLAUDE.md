@@ -404,8 +404,7 @@ HashMap/ArrayList — подписка ДО пула, реестр во врем
 - **Краевые**: `resolve` неизвестного → `NotFoundException` (не null); null/пустой URL —
   решить (отвергать); переполнение счётчика → `int` в минус → `encode` вернёт "" (лечить `long`).
 
-**Продолжить:** мок по URL shortener (эталон `src/tdd/urlshortener/UrlShortener.java`),
-затем последняя ката — добить idempotency (тесты 4–5 в `IdempotentProcessor2`).
+**(Итог: URL shortener ЗАВЕРШЁН — см. раздел ниже «2026-09-15/16».)**
 
 ### Прогон 2026-09-15/16: pub/sub дописан, url shortener дописан
 
