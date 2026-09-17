@@ -1,6 +1,7 @@
 package streams.zpractice;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.*;
 
@@ -164,6 +165,131 @@ public class StreamsPractice {
                 .collect(groupingBy(Employee::getDept, groupingBy(Employee::getCity, counting())));
     }
 
+    // ==================== ЗАДАЧИ (слой 2 — ПРОДВИНУТЫЙ) ====================
+
+    /** 14. Top-2 самых высокооплачиваемых имени в каждом департаменте (по убыванию зарплаты).
+     *      Ожидается: {Eng=[Eve, Alice], Sales=[Dave, Carol]} */
+    static Map<String, List<String>> task14(List<Employee> emps) {
+        return emps.stream()
+                .collect(groupingBy(Employee::getDept,
+                        Collectors.collectingAndThen(toList(),  (List<Employee> list) -> list.stream()
+                                        .sorted(Comparator.comparing(Employee::getSalary).reversed())
+                                        .limit(2)
+                                        .map(Employee::getName)
+                                        .toList())));
+    }
+
+    /** 15. Департамент с наибольшим числом сотрудников. Ожидается: "Eng" */
+    static String task15(List<Employee> emps) {
+        return emps.stream()
+                .collect(Collectors.groupingBy(Employee::getDept, counting()))
+                .entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
+    /** 16. Медиана зарплат через КАСТОМНЫЙ Collector (все 4 части: supplier/accumulator/combiner/finisher).
+     *      Данные: 80k,90k,90k,100k,120k → медиана 90000. Ожидается: 90000 */
+    static BigDecimal task16(List<Employee> emps) {
+        return emps.stream()
+                .collect(Collector.of(
+                        ArrayList<BigDecimal>::new,
+                        (list, e) -> list.add(e.getSalary()),
+                        (a, b) -> {a.addAll(b); return a;},
+                        list -> {
+                            Collections.sort(list);                 // отсортировать по возрастанию
+                            int n = list.size();
+                            if (n == 0) return BigDecimal.ZERO;      // пусто → 0
+                            if (n % 2 == 1) {                        // НЕЧЁТНОЕ → средний элемент
+                                return list.get(n / 2);
+                            } else {                                 // ЧЁТНОЕ → среднее двух средних
+                                return list.get(n/2 - 1)
+                                        .add(list.get(n/2))
+                                        .divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+                            }
+                        }
+
+                ));
+    }
+
+    // ==================== ЗАДАЧИ (слой 3 — flatMap) ====================
+
+    /** 17. Все навыки всех сотрудников в один плоский список (С повторами, в порядке встречи).
+     *      Ожидается: [java, sql, java, excel, excel, sql, java, python] */
+    static List<String> task17(List<Employee> emps) {
+        return emps.stream()
+                .flatMap(e-> e.getSkills().stream())
+                .toList();
+    }
+
+    /** 18. Уникальные навыки (в порядке встречи).
+     *      Ожидается: [java, sql, excel, python] */
+    static List<String> task18(List<Employee> emps) {
+        return emps.stream()
+                .flatMap(e-> e.getSkills().stream())
+                .distinct()
+                .toList();
+    }
+
+    /** 19. Собрать НЕ-null email'ы через Optional::stream (findEmail() возвращает Optional).
+     *      Ожидается: [alice@x.com, carol@x.com, dave@x.com]  (у Bob и Eve email null) */
+    static List<String> task19(List<Employee> emps) {
+        return emps.stream()
+                .flatMap(e-> e.findEmail().stream())
+                .toList();
+    }
+
+    // ==================== ЗАДАЧИ (слой 4 — reduce) ====================
+
+    /** 20. Сумма всех зарплат через reduce (3-арг: тип аккумулятора BigDecimal != тип элемента Employee).
+     *      Ожидается: 480000 */
+    static BigDecimal task20(List<Employee> emps) {
+        return emps.stream()
+                .reduce(BigDecimal.ZERO, (acc, e)->acc.add(e.getSalary()), BigDecimal::add);
+    }
+
+    /** 21. Максимальная зарплата через reduce. Ожидается: 120000 */
+    static BigDecimal task21(List<Employee> emps) {
+        return emps.stream()
+                .map(Employee::getSalary)
+                .reduce(BigDecimal::max)
+                .orElse(null);
+    }
+
+    // ==================== ЗАДАЧИ (слой 5 — ЛОВУШКИ) ====================
+
+    /** 22. Map dept -> имя ПЕРВОГО сотрудника отдела через toMap.
+     *      Ловушка: без merge-функции toMap бросает IllegalStateException на дубле ключа (два Eng).
+     *      Дай merge (оставить первого). Ожидается: {Eng=Alice, Sales=Carol} */
+    static Map<String, String> task22(List<Employee> emps) {
+        return emps.stream()
+                .collect(Collectors.toMap(Employee::getDept, Employee::getName, (a, b) -> a));
+    }
+
+    /** 23. Ловушка неизменяемости: результат Stream.toList() (Java 16) НЕизменяемый.
+     *      Верни true, если попытка add() бросает UnsupportedOperationException. Ожидается: true */
+    static boolean task23(List<Employee> emps) {
+        List<String> names = emps.stream().map(Employee::getName).toList();
+        try {
+            names.add("X");
+            return false;
+        } catch (UnsupportedOperationException e) {
+            return true;
+        }
+    }
+
+    /** 24. Ловушка toMap + null: значение email бывает null (Bob, Eve), и toMap кидает NPE на null-значении.
+     *      Верни true, если toMap(id, email) действительно бросает NPE. Ожидается: true */
+    static boolean task24(List<Employee> emps) {
+        try {
+            emps.stream().collect(toMap(Employee::getId, Employee::getEmail));
+            return false;
+        } catch (NullPointerException e) {
+            return true;
+        }
+    }
+
     // ==================== ПРОВЕРКА ====================
 
     public static void main(String[] args) {
@@ -184,6 +310,25 @@ public class StreamsPractice {
         check(score, "task11", task11(EMPLOYEES), Map.of(1L,"Alice", 2L,"Bob", 3L,"Carol", 4L,"Dave", 5L,"Eve"));
         check(score, "task12", task12(EMPLOYEES), "Alice, Bob, Carol, Dave, Eve");
         check(score, "task13", task13(EMPLOYEES), Map.of("Eng", Map.of("London",2L,"Berlin",1L), "Sales", Map.of("Paris",2L)));
+
+        // --- слой 2: продвинутый ---
+        check(score, "task14", task14(EMPLOYEES), Map.of("Eng", List.of("Eve","Alice"), "Sales", List.of("Dave","Carol")));
+        check(score, "task15", task15(EMPLOYEES), "Eng");
+        check(score, "task16", task16(EMPLOYEES), bd(90000));
+
+        // --- слой 3: flatMap ---
+        check(score, "task17", task17(EMPLOYEES), List.of("java","sql","java","excel","excel","sql","java","python"));
+        check(score, "task18", task18(EMPLOYEES), List.of("java","sql","excel","python"));
+        check(score, "task19", task19(EMPLOYEES), List.of("alice@x.com","carol@x.com","dave@x.com"));
+
+        // --- слой 4: reduce ---
+        check(score, "task20", task20(EMPLOYEES), bd(480000));
+        check(score, "task21", task21(EMPLOYEES), bd(120000));
+
+        // --- слой 5: ловушки ---
+        check(score, "task22", task22(EMPLOYEES), Map.of("Eng","Alice", "Sales","Carol"));
+        check(score, "task23", task23(EMPLOYEES), true);
+        check(score, "task24", task24(EMPLOYEES), true);
 
         System.out.printf("%n==== %d / %d ====%n", score[0], score[1]);
     }
