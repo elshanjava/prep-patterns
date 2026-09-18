@@ -290,6 +290,72 @@ public class StreamsPractice {
         }
     }
 
+    // ==================== ЗАДАЧИ (слой 6 — КОЛЛЕКТОРЫ, которых не было) ====================
+
+    /** 25. Статистика по возрасту за ОДИН проход: count/sum/min/average/max.
+     *      Ожидается: count=5, sum=175, min=25, max=45 (среднее 35.0). */
+    static IntSummaryStatistics task25(List<Employee> emps) {
+        return null;
+    }
+
+    /** 26. Средняя зарплата через teeing (Java 12): сумма и количество за ОДИН проход.
+     *      Деньги — BigDecimal, делить с scale 2 и HALF_UP.
+     *      Ожидается: 96000.00 */
+    static BigDecimal task26(List<Employee> emps) {
+        return null;
+    }
+
+    /** 27. Множество навыков по департаменту через flatMapping (Java 9),
+     *      без промежуточных списков и постобработки.
+     *      Ожидается: {Eng=[java, sql, python], Sales=[excel, sql]} */
+    static Map<String, Set<String>> task27(List<Employee> emps) {
+        return null;
+    }
+
+    /** 28. Имена ТОЛЬКО активных, сгруппированные по департаменту, через filtering (Java 9).
+     *      Ожидается: {Eng=[Alice, Bob], Sales=[Dave]}
+     *      Ловушка: с filtering пустые группы СОХРАНЯЮТСЯ; с filter() до groupingBy — исчезают. */
+    static Map<String, List<String>> task28(List<Employee> emps) {
+        return null;
+    }
+
+    /** 29. Счётчик по департаменту, результат отсортирован по ключу (TreeMap как mapFactory).
+     *      Ожидается: {Eng=3, Sales=2} */
+    static Map<String, Long> task29(List<Employee> emps) {
+        return null;
+    }
+
+    // ==================== ЗАДАЧИ (слой 7 — ЛОВУШКИ) ====================
+
+    /** 30. Имена: департамент по ВОЗРАСТАНИЮ, внутри зарплата по УБЫВАНИЮ.
+     *      Ожидается: [Eve, Alice, Bob, Dave, Carol]
+     *      Ловушка: .thenComparing(Employee::getSalary).reversed() разворачивает ВСЮ цепочку
+     *      и даёт [Dave, Carol, Eve, Alice, Bob]. reversed() вешается на ВНУТРЕННИЙ компаратор. */
+    static List<String> task30(List<Employee> emps) {
+        return null;
+    }
+
+    /** 31. peek + count(): верни true, если peek НЕ выполнился НИ РАЗУ.
+     *      Ожидается: true — источник List, размер известен, count() выбрасывает пайплайн.
+     *      Считать вызовы можно через int[] counter = {0} (лямбде нужен effectively final). */
+    static boolean task31(List<Employee> emps) {
+        return false;
+    }
+
+    /** 32. Первые 10 чисел Фибоначчи через Stream.iterate с состоянием в массиве.
+     *      Ожидается: [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+     *      Без limit — бесконечный стрим и зависание. */
+    static List<Long> task32() {
+        return null;
+    }
+
+    /** 33. Ассоциативность: верни true, если reduce(0, (a, b) -> a - b) на Stream.of(1,2,3,4)
+     *      даёт РАЗНЫЙ результат последовательно и параллельно.
+     *      Ожидается: true — sequential -10, parallel 0. Вычитание не ассоциативно. */
+    static boolean task33() {
+        return false;
+    }
+
     // ==================== ПРОВЕРКА ====================
 
     public static void main(String[] args) {
@@ -330,12 +396,35 @@ public class StreamsPractice {
         check(score, "task23", task23(EMPLOYEES), true);
         check(score, "task24", task24(EMPLOYEES), true);
 
+
+        // --- слой 6: коллекторы ---
+        IntSummaryStatistics st = task25(EMPLOYEES);
+        check(score, "task25", st == null ? null
+                : List.of(st.getCount(), st.getSum(), st.getMin(), st.getMax()),
+                List.of(5L, 175L, 25, 45));
+        check(score, "task26", task26(EMPLOYEES), new BigDecimal("96000.00"));
+        check(score, "task27", task27(EMPLOYEES), Map.of("Eng", Set.of("java","sql","python"),
+                                                         "Sales", Set.of("excel","sql")));
+        check(score, "task28", task28(EMPLOYEES), Map.of("Eng", List.of("Alice","Bob"),
+                                                         "Sales", List.of("Dave")));
+        check(score, "task29", task29(EMPLOYEES), Map.of("Eng", 3L, "Sales", 2L));
+
+        // --- слой 7: ловушки ---
+        check(score, "task30", task30(EMPLOYEES), List.of("Eve","Alice","Bob","Dave","Carol"));
+        check(score, "task31", task31(EMPLOYEES), true);
+        check(score, "task32", task32(), List.of(0L,1L,1L,2L,3L,5L,8L,13L,21L,34L));
+        check(score, "task33", task33(), true);
+
         System.out.printf("%n==== %d / %d ====%n", score[0], score[1]);
     }
 
     private static void check(int[] score, String name, Object actual, Object expected) {
         score[1]++;
-        boolean ok = Objects.equals(actual, expected);
+        // BigDecimal.equals учитывает МАСШТАБ: 96000 и 96000.00 не равны.
+        // Деньги сравниваем по значению — compareTo.
+        boolean ok = (actual instanceof BigDecimal x && expected instanceof BigDecimal y)
+                ? x.compareTo(y) == 0
+                : Objects.equals(actual, expected);
         if (ok) score[0]++;
         System.out.printf("%s %-8s -> %s%s%n",
                 ok ? "✅" : "❌",
