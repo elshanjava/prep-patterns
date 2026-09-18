@@ -15,7 +15,8 @@
 |---|---|
 | `src/pattern/` | 23 GoF-паттерна в разбивке `bad/` → `good/` → `model/` |
 | `src/concurrent/` | конкурентные паттерны: bulkhead, circuitbreaker, completablefuture, producerconsumer, readwritelock, retry, threadpool |
-| `src/tdd/` | TDD-каты: blockingqueue, idempotency, loadbalancer, lrucache, pubsub, ratelimiter, transfer, urlshortener |
+| `src/tdd/` | TDD-каты: blockingqueue, idempotency, loadbalancer, lrucache, pubsub, ratelimiter, transfer, urlshortener — **все восемь пройдены** |
+| `src/streams/` | эталон на 41 задачу (`StreamTasksDemo`) + тренажёр пользователя (`zpractice/StreamsPractice`), см. секцию «Streams API» |
 | `src/**/zpractice/` | **тренировочная зона пользователя.** Он пишет туда сам, по памяти. Не править без явной просьбы — можно только ревьюить и указывать на баги |
 | `test/` | тесты; классы с суффиксом `2Test` и файлы `*2.java` — тоже его тренировка |
 | `setup/prep_planner (2).html` | самодельный планировщик задач: 23 GoF + 40 Streams + 30 SQL + 15 Concurrency/TDD |
@@ -615,6 +616,106 @@ export GRADLE_USER_HOME=/tmp/prep-gradle-home
 printf 'gradle.beforeProject { p -> p.layout.buildDirectory = new File("/tmp/prep-build/" + p.name) }\n' > /tmp/redirect-build.gradle
 ./gradlew -I /tmp/redirect-build.gradle --project-cache-dir /tmp/prep-proj-cache clean test
 ```
+
+---
+
+## Streams API — тренировка (начата 2026-09-17)
+
+### Где что лежит
+
+| Файл | Что это |
+|---|---|
+| `src/streams/StreamTasksDemo.java` | **эталон**: 41 задача с решениями, 7 слоёв, `main` печатает. Тестов нет. НЕ подсматривать до сдачи |
+| `src/streams/zpractice/StreamsPractice.java` | **тренажёр пользователя**: те же домен и данные, задачи с самопроверкой, `main` печатает ✅/❌ и счёт |
+
+Тренажёр — не демка: он **сравнивает с эталонным ответом**, зашитым в `check(...)`.
+Но живёт в `main`, поэтому `./gradlew test` его не видит. Когда набьёт руку —
+перенести `check` в JUnit (минут пять).
+
+### Метод работы (отличается от TDD-кат)
+
+В катах шло **проектирование**: API, структуры данных, red-green. В стримах проектировать
+нечего — задача формулируется фразой, ответ это выражение в 3–5 строк. Проверяется
+**беглость и распознавание идиомы** плюс знание ловушек. Цикл:
+```
+формулировка словами -> пишешь пайплайн вслепую -> прогон -> разбор идиомы
+```
+Red-green не нужен: тест пишется ДО и является частью условия.
+
+### Состояние на 2026-09-18
+
+**24 / 24 решены** (слои 0–5 тренажёра). Данные: 5 сотрудников, фиксированные.
+
+Сделано сильно: downstream-коллекторы вместо постобработки (`mapping`, вложенный
+`groupingBy`); деньги через `reducing(ZERO, getSalary, BigDecimal::add)`, а не
+`summingDouble` (типовая финтех-ошибка — не допустил); `Optional::stream` (Java 9);
+трёхаргументный `reduce` с правильным комбайнером; `toMap` с merge-функцией.
+
+**Замечания, не исправленные:**
+- `orElse(null)` в задачах 15 и 21 — разворачивать `Optional` в `null` значит вернуть
+  проблему, ради которой он существует. Правильно: отдавать `Optional` наружу либо `orElseThrow()`.
+- **Чётная ветка медианы (задача 16) не исполняется** — в наборе 5 человек, `n` нечётное.
+  Половина кастомного коллектора не проверена ничем.
+- Там же мина: `divide(..., 2, HALF_UP)` даёт scale 2, а ожидание строится через
+  `bd()` = `BigDecimal.valueOf` со scale 0. **`BigDecimal.equals` сравнивает И масштаб**
+  (замерено: `valueOf(90000).equals(new BigDecimal("90000.00"))` = false, `compareTo` = 0).
+  Починка `check`:
+  ```java
+  boolean ok = (actual instanceof BigDecimal x && expected instanceof BigDecimal y)
+          ? x.compareTo(y) == 0
+          : Objects.equals(actual, expected);
+  ```
+- стиль: есть `import static Collectors.*`, но местами пишется `Collectors.mapping(...)`.
+
+### Выданная следующая порция (9 задач, 25–33)
+
+Ожидаемые значения посчитаны на ЕГО наборе данных:
+```
+25 summarizingInt(age)      -> IntSummaryStatistics{count=5, sum=175, min=25, average=35.0, max=45}
+26 teeing: средняя зарплата -> 96000.00   (сумма+счёт за один проход, BigDecimal)
+27 flatMapping по dept      -> {Eng=[java, sql, python], Sales=[excel, sql]}
+28 filtering (только active)-> {Eng=[Alice, Bob], Sales=[Dave]}   пустые группы СОХРАНЯЮТСЯ
+29 groupingBy в TreeMap     -> {Eng=3, Sales=2}
+30 dept ASC + salary DESC   -> [Eve, Alice, Bob, Dave, Carol]
+   ЛОВУШКА: .thenComparing(salary).reversed() разворачивает ВСЮ цепочку -> [Dave, Carol, Eve, Alice, Bob]
+31 peek + count()           -> true (peek НЕ выполняется: источник List, размер известен)
+32 Фибоначчи через iterate  -> [0,1,1,2,3,5,8,13,21,34]
+33 reduce(0,(a,b)->a-b)     -> seq=-10, par=0  (нарушена ассоциативность)
+```
+
+### Сколько осталось до покрытия эталона
+
+Посчитано построчно: после этой порции будет 33, **не покрыто 11**, ещё 3 покрыты наполовину.
+Итого **44 задачи закрывают демку целиком** — это две сессии.
+
+Не покрыто совсем:
+```
+эталон 21  составной ключ (record как ключ группировки)
+эталон 25  гонка на shared mutable state в parallel
+эталон 26  findFirst vs findAny
+эталон 27  вложенный flatMap: заказы -> позиции -> выручка
+эталон 29  декартово произведение (account x currency)
+эталон 30  плоский список из Map<K, List<V>>
+эталон 32  iterate с тремя аргументами
+эталон 33  takeWhile / dropWhile
+эталон 34  running balance — ЦЕННОСТЬ В ОТВЕТЕ «стрим здесь не нужен», операция stateful
+эталон 35  повторное использование стрима -> IllegalStateException
+эталон 37  ленивость: без терминальной операции ничего не выполняется
+```
+Покрыто наполовину:
+```
+эталон 6   есть только allMatch; не покрыто поведение на ПУСТОМ стриме
+           (all=true, any=false, none=true — «пустой список прошёл валидацию»)
+эталон 10  toMap с last-wins; у него merge оставляет ПЕРВОГО ((a,b) -> a)
+эталон 39  проверена неизменяемость Stream.toList(); не проверено, что
+           Collectors.toList() ИЗМЕНЯЕМЫЙ (потому его и берут в downstream)
+```
+
+### Чем закрывается тема
+
+Числом — не закрывается. 44 решённые задачи = «видел все идиомы». Беглость даёт только
+**прогон на время**: 10 случайных задач из уже решённых, чистый файл, по минуте на каждую,
+без подглядывания. Что не вспомнилось за минуту — реальный остаток.
 
 ---
 
