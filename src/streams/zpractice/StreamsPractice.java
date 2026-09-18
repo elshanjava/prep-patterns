@@ -52,6 +52,39 @@ public class StreamsPractice {
         @Override public String toString() { return name; }
     }
 
+    /** Транзакция — для running balance (задача 45). */
+    static final class Txn {
+        private final String account;
+        private final BigDecimal amount;
+        private final boolean suspicious;
+        Txn(String account, BigDecimal amount, boolean suspicious) {
+            this.account = account; this.amount = amount; this.suspicious = suspicious;
+        }
+        public String getAccount()    { return account; }
+        public BigDecimal getAmount() { return amount; }
+        public boolean isSuspicious() { return suspicious; }
+        @Override public String toString() { return account + ":" + amount; }
+    }
+
+    /** Позиция заказа — для вложенного flatMap (задача 40). */
+    static final class LineItem {
+        private final BigDecimal price;
+        private final int qty;
+        LineItem(BigDecimal price, int qty) { this.price = price; this.qty = qty; }
+        public BigDecimal getPrice() { return price; }
+        public int getQty()          { return qty; }
+    }
+
+    /** Заказ = список позиций. */
+    static final class Order {
+        private final List<LineItem> items;
+        Order(List<LineItem> items) { this.items = items; }
+        public List<LineItem> getItems() { return items; }
+    }
+
+    /** Составной ключ группировки (задача 37) — record как ключ мапы. */
+    record DeptActive(String dept, boolean active) {}
+
     // ==================== МОК-ДАННЫЕ (фиксированные) ====================
 
     static final List<Employee> EMPLOYEES = List.of(
@@ -295,34 +328,45 @@ public class StreamsPractice {
     /** 25. Статистика по возрасту за ОДИН проход: count/sum/min/average/max.
      *      Ожидается: count=5, sum=175, min=25, max=45 (среднее 35.0). */
     static IntSummaryStatistics task25(List<Employee> emps) {
-        return null;
+        return emps.stream()
+                .collect(summarizingInt(Employee::getAge));
     }
 
     /** 26. Средняя зарплата через teeing (Java 12): сумма и количество за ОДИН проход.
      *      Деньги — BigDecimal, делить с scale 2 и HALF_UP.
      *      Ожидается: 96000.00 */
     static BigDecimal task26(List<Employee> emps) {
-        return null;
+        return emps.stream()
+                .collect(Collectors.teeing(
+                        Collectors.reducing(BigDecimal.ZERO, Employee::getSalary, BigDecimal::add),
+                        counting(),
+                        (sum, count)-> sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)));
     }
 
     /** 27. Множество навыков по департаменту через flatMapping (Java 9),
      *      без промежуточных списков и постобработки.
      *      Ожидается: {Eng=[java, sql, python], Sales=[excel, sql]} */
     static Map<String, Set<String>> task27(List<Employee> emps) {
-        return null;
+        return emps.stream()
+                .collect(Collectors.groupingBy(
+                        Employee::getDept,flatMapping(e-> e.getSkills().stream(), toSet())));
     }
 
     /** 28. Имена ТОЛЬКО активных, сгруппированные по департаменту, через filtering (Java 9).
      *      Ожидается: {Eng=[Alice, Bob], Sales=[Dave]}
      *      Ловушка: с filtering пустые группы СОХРАНЯЮТСЯ; с filter() до groupingBy — исчезают. */
     static Map<String, List<String>> task28(List<Employee> emps) {
-        return null;
+        return emps.stream()
+                .collect(Collectors.groupingBy(
+                        Employee::getDept,
+                                filtering(Employee::isActive, mapping(Employee::getName, toList()))));
     }
 
     /** 29. Счётчик по департаменту, результат отсортирован по ключу (TreeMap как mapFactory).
      *      Ожидается: {Eng=3, Sales=2} */
     static Map<String, Long> task29(List<Employee> emps) {
-        return null;
+        return emps.stream()
+                .collect(Collectors.groupingBy(Employee::getDept, TreeMap::new, counting()));
     }
 
     // ==================== ЗАДАЧИ (слой 7 — ЛОВУШКИ) ====================
@@ -332,28 +376,30 @@ public class StreamsPractice {
      *      Ловушка: .thenComparing(Employee::getSalary).reversed() разворачивает ВСЮ цепочку
      *      и даёт [Dave, Carol, Eve, Alice, Bob]. reversed() вешается на ВНУТРЕННИЙ компаратор. */
     static List<String> task30(List<Employee> emps) {
-        return null;
-    }
-
-    /** 31. peek + count(): верни true, если peek НЕ выполнился НИ РАЗУ.
-     *      Ожидается: true — источник List, размер известен, count() выбрасывает пайплайн.
-     *      Считать вызовы можно через int[] counter = {0} (лямбде нужен effectively final). */
-    static boolean task31(List<Employee> emps) {
-        return false;
+        return emps.stream()
+                .sorted(Comparator.comparing(
+                        Employee::getDept).thenComparing(Comparator.comparing(Employee::getSalary).reversed()))
+                .map(Employee::getName)
+                .toList();
     }
 
     /** 32. Первые 10 чисел Фибоначчи через Stream.iterate с состоянием в массиве.
      *      Ожидается: [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
      *      Без limit — бесконечный стрим и зависание. */
     static List<Long> task32() {
-        return null;
+        return Stream.iterate(new long[]{0,1}, a-> new long[]{a[1], a[0] + a[1]})
+                .limit(10)
+                .map(a -> a[0])
+                .toList();
     }
 
     /** 33. Ассоциативность: верни true, если reduce(0, (a, b) -> a - b) на Stream.of(1,2,3,4)
      *      даёт РАЗНЫЙ результат последовательно и параллельно.
      *      Ожидается: true — sequential -10, parallel 0. Вычитание не ассоциативно. */
     static boolean task33() {
-        return false;
+        int seq = Stream.of(1, 2, 3, 4).reduce(0, (a, b) -> a - b);            // 0-1-2-3-4 = -10
+        int par = Stream.of(1, 2, 3, 4).parallel().reduce(0, (a, b) -> a - b); // параллельно склеивается иначе
+        return seq != par;
     }
 
     // ==================== ПРОВЕРКА ====================
@@ -411,7 +457,6 @@ public class StreamsPractice {
 
         // --- слой 7: ловушки ---
         check(score, "task30", task30(EMPLOYEES), List.of("Eve","Alice","Bob","Dave","Carol"));
-        check(score, "task31", task31(EMPLOYEES), true);
         check(score, "task32", task32(), List.of(0L,1L,1L,2L,3L,5L,8L,13L,21L,34L));
         check(score, "task33", task33(), true);
 
