@@ -96,6 +96,24 @@ public class StreamsPractice {
         new Employee(5, "Eve",   "Eng",   "Berlin", bd(120000), null,          false, 45, List.of("java","python"))
     );
 
+    static final List<Txn> TXNS = List.of(
+        new Txn("ACC-1", bd(100), false),
+        new Txn("ACC-1", bd(-30), true),
+        new Txn("ACC-1", bd( 50), false),
+        new Txn("ACC-1", bd(-20), false)
+    );
+
+    static final List<Order> ORDERS = List.of(
+        new Order(List.of(new LineItem(bd(100), 2), new LineItem(bd(50), 1))),  // 250
+        new Order(List.of(new LineItem(bd(200), 3))),                           // 600
+        new Order(List.of())                                                    // пустой заказ
+    );
+
+    static final List<String> ACCOUNTS   = List.of("ACC-1", "ACC-2");
+    static final List<String> CURRENCIES = List.of("EUR", "USD");
+    static final Map<String, List<String>> DEPT_SKILLS =
+        Map.of("Eng", List.of("java", "sql"), "Sales", List.of("excel"));
+
     static BigDecimal bd(long v) { return BigDecimal.valueOf(v); }
 
     // ==================== ЗАДАЧИ (слой 0 — заполняй) ====================
@@ -402,6 +420,116 @@ public class StreamsPractice {
         return seq != par;
     }
 
+    /** 31. peek + count(): верни true, если peek НЕ выполнился НИ РАЗУ.
+     *      Ожидается: true — источник List, размер известен, count() выбрасывает пайплайн.
+     *      Считать вызовы через int[] counter = {0} (лямбде нужна effectively final переменная). */
+    static boolean task31(List<Employee> emps) {
+        return false;
+    }
+
+    // ==================== ЗАДАЧИ (слой 8 — ОСТАТОК ЭТАЛОНА) ====================
+
+    /** 34. Поведение match на ПУСТОМ стриме. Вернуть [allMatch, anyMatch, noneMatch].
+     *      Ожидается: [true, false, true]
+     *      Отсюда реальный баг: "все записи прошли валидацию" на пустом списке — правда. */
+    static List<Boolean> task34() {
+        return null;
+    }
+
+    /** 35. Map dept -> имя, при дубле оставить ПОСЛЕДНЕГО (last-wins).
+     *      Ожидается: {Eng=Eve, Sales=Dave}
+     *      Сравни с задачей 22, где merge оставлял первого. */
+    static Map<String, String> task35(List<Employee> emps) {
+        return null;
+    }
+
+    /** 36. findFirst на ПАРАЛЛЕЛЬНОМ стриме детерминирован: отсортируй по зарплате
+     *      по убыванию и верни имя первого. Ожидается: Eve
+     *      findAny на тех же данных быстрее, но может вернуть кого угодно. */
+    static String task36(List<Employee> emps) {
+        return null;
+    }
+
+    /** 37. Группировка по СОСТАВНОМУ ключу (dept, active) через record DeptActive.
+     *      Ожидается: {(Eng,true)=2, (Eng,false)=1, (Sales,true)=1, (Sales,false)=1}
+     *      record бесплатно даёт equals/hashCode — без них ключ мапы не работает. */
+    static Map<DeptActive, Long> task37(List<Employee> emps) {
+        return null;
+    }
+
+    /** 38. Гонка на общем изменяемом состоянии. Прогони 50 раундов: в каждом
+     *      IntStream.range(0, 10_000).parallel().forEach(общий ArrayList::add).
+     *      Верни true, если ХОТЬ РАЗ размер получился не 10000 или прилетело исключение.
+     *      Ожидается: true — ArrayList не потокобезопасен; замерено, ломается в 98% раундов,
+     *      поэтому одного раунда мало. Правильно — collect(), он безопасен по построению. */
+    static boolean task38() {
+        return false;
+    }
+
+    /** 39. Декартово произведение ACCOUNTS x CURRENCIES в виде "ACC/CUR".
+     *      Ожидается: [ACC-1/EUR, ACC-1/USD, ACC-2/EUR, ACC-2/USD] */
+    static List<String> task39() {
+        return null;
+    }
+
+    /** 40. Выручка по ВСЕМ заказам (ORDERS): заказы -> позиции -> price * qty, сумма.
+     *      Ожидается: 850  (250 + 600 + пустой заказ)
+     *      Два уровня вложенности — flatMap по позициям. */
+    static BigDecimal task40(List<Order> orders) {
+        return null;
+    }
+
+    /** 41. Уплощение Map<String, List<String>> (DEPT_SKILLS) в пары "dept:skill", отсортированные.
+     *      Ожидается: [Eng:java, Eng:sql, Sales:excel]
+     *      Ключ нужен внутри flatMap — поэтому идём по entrySet(), а не по values(). */
+    static List<String> task41() {
+        return null;
+    }
+
+    /** 42. Степени двойки, не превышающие 1000, через трёхаргументный Stream.iterate (Java 9).
+     *      Ожидается: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+     *      Предикат заменяет limit — стрим конечен сам по себе. */
+    static List<Integer> task42() {
+        return null;
+    }
+
+    /** 43. takeWhile / dropWhile на Stream.of(1,2,3,10,4,5) с предикатом n < 10.
+     *      Вернуть [результат takeWhile, результат dropWhile].
+     *      Ожидается: [[1, 2, 3], [10, 4, 5]]
+     *      Ловушка: filter(n -> n < 10) дал бы [1,2,3,4,5] — он не останавливается. */
+    static List<List<Integer>> task43() {
+        return null;
+    }
+
+    /** 44. Стрим одноразовый: верни true, если ВТОРАЯ терминальная операция
+     *      на том же стриме бросает IllegalStateException.
+     *      Ожидается: true ("stream has already been operated upon or closed") */
+    static boolean task44() {
+        return false;
+    }
+
+    /** 45. Нарастающий остаток по TXNS: [100, -30, 50, -20] -> [100, 70, 120, 100].
+     *      ПРАВИЛЬНЫЙ ОТВЕТ НА СОБЕСЕДОВАНИИ: стрим здесь не нужен. Операция stateful
+     *      и последовательная; стрим потребовал бы внешнего изменяемого состояния
+     *      и сломался бы в parallel. Пиши обычный цикл и проговори почему. */
+    static List<BigDecimal> task45(List<Txn> txns) {
+        return null;
+    }
+
+    /** 46. Ленивость: собери пайплайн с map, НЕ вызывая терминальную операцию,
+     *      и верни true, если функция внутри map не была вызвана ни разу.
+     *      Ожидается: true — без терминала промежуточные операции не исполняются. */
+    static boolean task46() {
+        return false;
+    }
+
+    /** 47. Collectors.toList() возвращает ИЗМЕНЯЕМЫЙ список (в отличие от Stream.toList()).
+     *      Верни true, если add() к результату проходит без исключения.
+     *      Ожидается: true. Поэтому в downstream-коллекторах берут именно Collectors.toList(). */
+    static boolean task47() {
+        return false;
+    }
+
     // ==================== ПРОВЕРКА ====================
 
     public static void main(String[] args) {
@@ -459,6 +587,26 @@ public class StreamsPractice {
         check(score, "task30", task30(EMPLOYEES), List.of("Eve","Alice","Bob","Dave","Carol"));
         check(score, "task32", task32(), List.of(0L,1L,1L,2L,3L,5L,8L,13L,21L,34L));
         check(score, "task33", task33(), true);
+
+        check(score, "task31", task31(EMPLOYEES), true);
+
+        // --- слой 8: остаток эталона ---
+        check(score, "task34", task34(), List.of(true, false, true));
+        check(score, "task35", task35(EMPLOYEES), Map.of("Eng", "Eve", "Sales", "Dave"));
+        check(score, "task36", task36(EMPLOYEES), "Eve");
+        check(score, "task37", task37(EMPLOYEES), Map.of(
+                new DeptActive("Eng", true), 2L, new DeptActive("Eng", false), 1L,
+                new DeptActive("Sales", true), 1L, new DeptActive("Sales", false), 1L));
+        check(score, "task38", task38(), true);
+        check(score, "task39", task39(), List.of("ACC-1/EUR","ACC-1/USD","ACC-2/EUR","ACC-2/USD"));
+        check(score, "task40", task40(ORDERS), bd(850));
+        check(score, "task41", task41(), List.of("Eng:java","Eng:sql","Sales:excel"));
+        check(score, "task42", task42(), List.of(1,2,4,8,16,32,64,128,256,512));
+        check(score, "task43", task43(), List.of(List.of(1,2,3), List.of(10,4,5)));
+        check(score, "task44", task44(), true);
+        check(score, "task45", task45(TXNS), List.of(bd(100), bd(70), bd(120), bd(100)));
+        check(score, "task46", task46(), true);
+        check(score, "task47", task47(), true);
 
         System.out.printf("%n==== %d / %d ====%n", score[0], score[1]);
     }
