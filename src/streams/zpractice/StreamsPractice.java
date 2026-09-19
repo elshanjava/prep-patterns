@@ -420,12 +420,6 @@ public class StreamsPractice {
         return seq != par;
     }
 
-    /** 31. peek + count(): верни true, если peek НЕ выполнился НИ РАЗУ.
-     *      Ожидается: true — источник List, размер известен, count() выбрасывает пайплайн.
-     *      Считать вызовы через int[] counter = {0} (лямбде нужна effectively final переменная). */
-    static boolean task31(List<Employee> emps) {
-        return false;
-    }
 
     // ==================== ЗАДАЧИ (слой 8 — ОСТАТОК ЭТАЛОНА) ====================
 
@@ -457,14 +451,6 @@ public class StreamsPractice {
         return null;
     }
 
-    /** 38. Гонка на общем изменяемом состоянии. Прогони 50 раундов: в каждом
-     *      IntStream.range(0, 10_000).parallel().forEach(общий ArrayList::add).
-     *      Верни true, если ХОТЬ РАЗ размер получился не 10000 или прилетело исключение.
-     *      Ожидается: true — ArrayList не потокобезопасен; замерено, ломается в 98% раундов,
-     *      поэтому одного раунда мало. Правильно — collect(), он безопасен по построению. */
-    static boolean task38() {
-        return false;
-    }
 
     /** 39. Декартово произведение ACCOUNTS x CURRENCIES в виде "ACC/CUR".
      *      Ожидается: [ACC-1/EUR, ACC-1/USD, ACC-2/EUR, ACC-2/USD] */
@@ -501,12 +487,6 @@ public class StreamsPractice {
         return null;
     }
 
-    /** 44. Стрим одноразовый: верни true, если ВТОРАЯ терминальная операция
-     *      на том же стриме бросает IllegalStateException.
-     *      Ожидается: true ("stream has already been operated upon or closed") */
-    static boolean task44() {
-        return false;
-    }
 
     /** 45. Нарастающий остаток по TXNS: [100, -30, 50, -20] -> [100, 70, 120, 100].
      *      ПРАВИЛЬНЫЙ ОТВЕТ НА СОБЕСЕДОВАНИИ: стрим здесь не нужен. Операция stateful
@@ -516,19 +496,31 @@ public class StreamsPractice {
         return null;
     }
 
-    /** 46. Ленивость: собери пайплайн с map, НЕ вызывая терминальную операцию,
-     *      и верни true, если функция внутри map не была вызвана ни разу.
-     *      Ожидается: true — без терминала промежуточные операции не исполняются. */
-    static boolean task46() {
-        return false;
-    }
 
-    /** 47. Collectors.toList() возвращает ИЗМЕНЯЕМЫЙ список (в отличие от Stream.toList()).
-     *      Верни true, если add() к результату проходит без исключения.
-     *      Ожидается: true. Поэтому в downstream-коллекторах берут именно Collectors.toList(). */
-    static boolean task47() {
-        return false;
-    }
+
+    // ==================== ЛОВУШКИ: ЗНАТЬ, НЕ ПИСАТЬ ====================
+    //
+    // Это не задачи — писать тут нечего, ответ не пайплайн. Но спрашивают устно,
+    // поэтому держим списком. Номера 31, 38, 44, 46, 47 свободны — задачи убраны отсюда.
+    //
+    //  peek + count()         peek может НЕ выполниться: источник List знает размер,
+    //                         count() выбрасывает пайплайн целиком. Проверено — не печатает ничего.
+    //
+    //  ленивость              без терминальной операции промежуточные не исполняются вообще:
+    //                         Stream.of(1,2,3).map(...) — функция внутри map вызвана 0 раз.
+    //
+    //  одноразовость          вторая терминальная операция на том же стриме ->
+    //                         IllegalStateException: stream has already been operated upon or closed
+    //
+    //  общий ArrayList        parallel().forEach(list::add) ломается (замерено: 196 раундов из 200)
+    //                         — теряет элементы, получает null, кидает исключения.
+    //                         Правильно: collect(), он потокобезопасен по построению.
+    //
+    //  Collectors.toList()    ИЗМЕНЯЕМЫЙ ArrayList (но без гарантий на будущее) — потому его
+    //                         и берут в downstream-коллекторах. Stream.toList() (16+) неизменяемый.
+    //
+    //  findAny vs findFirst   findAny быстрее и недетерминирован в parallel; findFirst
+    //                         детерминирован, но заставляет соблюдать порядок встречи.
 
     // ==================== ПРОВЕРКА ====================
 
@@ -588,7 +580,6 @@ public class StreamsPractice {
         check(score, "task32", task32(), List.of(0L,1L,1L,2L,3L,5L,8L,13L,21L,34L));
         check(score, "task33", task33(), true);
 
-        check(score, "task31", task31(EMPLOYEES), true);
 
         // --- слой 8: остаток эталона ---
         check(score, "task34", task34(), List.of(true, false, true));
@@ -597,16 +588,12 @@ public class StreamsPractice {
         check(score, "task37", task37(EMPLOYEES), Map.of(
                 new DeptActive("Eng", true), 2L, new DeptActive("Eng", false), 1L,
                 new DeptActive("Sales", true), 1L, new DeptActive("Sales", false), 1L));
-        check(score, "task38", task38(), true);
         check(score, "task39", task39(), List.of("ACC-1/EUR","ACC-1/USD","ACC-2/EUR","ACC-2/USD"));
         check(score, "task40", task40(ORDERS), bd(850));
         check(score, "task41", task41(), List.of("Eng:java","Eng:sql","Sales:excel"));
         check(score, "task42", task42(), List.of(1,2,4,8,16,32,64,128,256,512));
         check(score, "task43", task43(), List.of(List.of(1,2,3), List.of(10,4,5)));
-        check(score, "task44", task44(), true);
         check(score, "task45", task45(TXNS), List.of(bd(100), bd(70), bd(120), bd(100)));
-        check(score, "task46", task46(), true);
-        check(score, "task47", task47(), true);
 
         System.out.printf("%n==== %d / %d ====%n", score[0], score[1]);
     }
