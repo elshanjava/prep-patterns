@@ -427,56 +427,73 @@ public class StreamsPractice {
      *      Ожидается: [true, false, true]
      *      Отсюда реальный баг: "все записи прошли валидацию" на пустом списке — правда. */
     static List<Boolean> task34() {
-        return null;
+        List<Employee> empty = new ArrayList<>();
+        return List.of(empty.stream().allMatch(Employee::isActive),
+                empty.stream().allMatch(Employee::isActive),
+                empty.stream().noneMatch(Employee::isActive));
     }
 
     /** 35. Map dept -> имя, при дубле оставить ПОСЛЕДНЕГО (last-wins).
      *      Ожидается: {Eng=Eve, Sales=Dave}
      *      Сравни с задачей 22, где merge оставлял первого. */
     static Map<String, String> task35(List<Employee> emps) {
-        return null;
+        return emps.stream()
+                .collect(Collectors.toMap(Employee::getDept, Employee::getName, (a, b)-> b));
     }
 
     /** 36. findFirst на ПАРАЛЛЕЛЬНОМ стриме детерминирован: отсортируй по зарплате
      *      по убыванию и верни имя первого. Ожидается: Eve
      *      findAny на тех же данных быстрее, но может вернуть кого угодно. */
     static String task36(List<Employee> emps) {
-        return null;
+        return emps.parallelStream()
+                .sorted(Comparator.comparing(Employee::getSalary).reversed())
+                .map(Employee::getName)
+                .findFirst()
+                .orElseThrow();
     }
 
     /** 37. Группировка по СОСТАВНОМУ ключу (dept, active) через record DeptActive.
      *      Ожидается: {(Eng,true)=2, (Eng,false)=1, (Sales,true)=1, (Sales,false)=1}
      *      record бесплатно даёт equals/hashCode — без них ключ мапы не работает. */
     static Map<DeptActive, Long> task37(List<Employee> emps) {
-        return null;
+        return emps.stream()
+                .collect(Collectors.groupingBy(e -> new DeptActive(e.getDept(), e.isActive()), counting()));
     }
 
 
     /** 39. Декартово произведение ACCOUNTS x CURRENCIES в виде "ACC/CUR".
      *      Ожидается: [ACC-1/EUR, ACC-1/USD, ACC-2/EUR, ACC-2/USD] */
     static List<String> task39() {
-        return null;
+        return ACCOUNTS.stream()
+                .flatMap(acc -> CURRENCIES.stream().map(cur -> acc + "/" + cur))
+                .toList();
     }
 
     /** 40. Выручка по ВСЕМ заказам (ORDERS): заказы -> позиции -> price * qty, сумма.
      *      Ожидается: 850  (250 + 600 + пустой заказ)
      *      Два уровня вложенности — flatMap по позициям. */
     static BigDecimal task40(List<Order> orders) {
-        return null;
+        return orders.stream()
+                .flatMap(o -> o.getItems().stream())
+                .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQty())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /** 41. Уплощение Map<String, List<String>> (DEPT_SKILLS) в пары "dept:skill", отсортированные.
      *      Ожидается: [Eng:java, Eng:sql, Sales:excel]
      *      Ключ нужен внутри flatMap — поэтому идём по entrySet(), а не по values(). */
     static List<String> task41() {
-        return null;
+        return DEPT_SKILLS.entrySet().stream()
+                .flatMap(e -> e.getValue().stream().map(skill -> e.getKey() + ":" + skill))
+                .sorted()
+                .toList();
     }
 
     /** 42. Степени двойки, не превышающие 1000, через трёхаргументный Stream.iterate (Java 9).
      *      Ожидается: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
      *      Предикат заменяет limit — стрим конечен сам по себе. */
     static List<Integer> task42() {
-        return null;
+        return Stream.iterate(1, n -> n < 1000, n -> n * 2).toList();
     }
 
     /** 43. takeWhile / dropWhile на Stream.of(1,2,3,10,4,5) с предикатом n < 10.
@@ -484,7 +501,8 @@ public class StreamsPractice {
      *      Ожидается: [[1, 2, 3], [10, 4, 5]]
      *      Ловушка: filter(n -> n < 10) дал бы [1,2,3,4,5] — он не останавливается. */
     static List<List<Integer>> task43() {
-        return null;
+        return List.of(Stream.of(1,2,3,10,4,5).takeWhile(n -> n < 10).toList(),
+                Stream.of(1, 2, 3, 10, 4, 5).dropWhile(n -> n < 10).toList());
     }
 
 
@@ -493,7 +511,13 @@ public class StreamsPractice {
      *      и последовательная; стрим потребовал бы внешнего изменяемого состояния
      *      и сломался бы в parallel. Пиши обычный цикл и проговори почему. */
     static List<BigDecimal> task45(List<Txn> txns) {
-        return null;
+        List<BigDecimal> result = new ArrayList<>(txns.size());
+        BigDecimal running = BigDecimal.ZERO;
+        for (Txn t : txns) {
+            running = running.add(t.getAmount());
+            result.add(running);
+        }
+        return List.copyOf(result);
     }
 
 
