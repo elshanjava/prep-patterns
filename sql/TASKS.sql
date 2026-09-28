@@ -372,7 +372,8 @@ FROM transactions WHERE account_id=1006;
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
 
-select t.id, t.amount, SUM(amount) over (partition by account_id order by created_at, id ROWS BETWEEN UNBOUNDED PRECEDING
+select t.id, t.amount,
+       SUM(amount) over (partition by account_id order by created_at, id ROWS BETWEEN UNBOUNDED PRECEDING
     AND CURRENT ROW) AS running_balance
 from transactions t;
 
@@ -494,6 +495,13 @@ FROM turnover;
 --    ключа дают РАЗНОЕ. Дефолтный фрейм при ORDER BY без явного — RANGE, частый сюрприз.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+SELECT id, amount,
+       ROUND(AVG(amount) OVER (
+           PARTITION BY account_id
+           ORDER BY created_at, id
+           ROWS BETWEEN 2 PRECEDING
+               AND CURRENT ROW),2) AS mov_avg3
+FROM transactions;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 11
@@ -531,6 +539,14 @@ FROM transactions WHERE account_id=1006;
 --    подзапрос/CTE. RANK вместо ROW_NUMBER вернёт >3 при ничьих.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+with ranked as (
+SELECT account_id, id, amount,
+       ROW_NUMBER() OVER (
+           PARTITION BY account_id
+           ORDER BY ABS(amount) DESC, id) AS rn
+FROM transactions)
+select account_id, id, amount from ranked
+where rn <= 3;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 12
@@ -569,6 +585,9 @@ FROM ranked WHERE rn <= 3;
 --    строка недетерминирована. Аналог Java toMap last-wins (№10).
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+select distinct on (account_id) account_id, id, amount, created_at
+from transactions
+order by account_id, created_at desc, id desc ;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 13
@@ -610,6 +629,13 @@ ORDER BY account_id, created_at DESC, id DESC;
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
 
+WITH d AS (
+    SELECT id, ROW_NUMBER() OVER (
+        PARTITION BY account_id, amount, type,
+            status, created_at
+        ORDER BY id) AS rn
+    FROM transactions)
+SELECT id, rn FROM d WHERE rn > 1;
 
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -648,6 +674,15 @@ SELECT id FROM d WHERE rn > 1;
 --    дни в данных не увидеть.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+WITH bounds AS (
+    SELECT MIN(created_at::date) lo, MAX(created_at::date) hi
+    FROM transactions WHERE account_id=1006),
+     days AS (SELECT gs::date d FROM bounds,
+                                     generate_series(lo,hi,interval '1 day') gs)
+SELECT d FROM days
+WHERE NOT EXISTS (SELECT 1 FROM transactions t
+                  WHERE t.account_id=1006
+                    AND t.created_at::date = days.d);
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 15
