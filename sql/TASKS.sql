@@ -630,10 +630,8 @@ ORDER BY account_id, created_at DESC, id DESC;
 
 
 WITH d AS (
-    SELECT id, ROW_NUMBER() OVER (
-        PARTITION BY account_id, amount, type,
-            status, created_at
-        ORDER BY id) AS rn
+    SELECT id,
+           ROW_NUMBER() OVER (PARTITION BY account_id, amount, type,status, created_at ORDER BY id) AS rn
     FROM transactions)
 SELECT id, rn FROM d WHERE rn > 1;
 
@@ -675,8 +673,11 @@ SELECT id FROM d WHERE rn > 1;
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
 WITH bounds AS (
-    SELECT MIN(created_at::date) lo, MAX(created_at::date) hi
-    FROM transactions WHERE account_id=1006),
+    SELECT
+        MIN(created_at::date) lo,
+        MAX(created_at::date) hi
+    FROM transactions
+    WHERE account_id=1006),
      days AS (SELECT gs::date d FROM bounds,
                                      generate_series(lo,hi,interval '1 day') gs)
 SELECT d FROM days
@@ -722,6 +723,18 @@ WHERE NOT EXISTS (SELECT 1 FROM transactions t
 --    ней. Мало кто помнит идиому под таймером.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+WITH d AS (SELECT
+            DISTINCT created_at::date AS day
+           FROM transactions WHERE account_id=1006),
+     grp AS (SELECT
+                 day,
+                 day - (ROW_NUMBER() OVER (ORDER BY day))::int AS island
+             FROM d)
+SELECT
+    MIN(day) start_day,
+    MAX(day) end_day,
+    COUNT(*) days
+FROM grp GROUP BY island;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 16
@@ -761,6 +774,20 @@ FROM grp GROUP BY island;
 --    Управляй явно: MATERIALIZED / NOT MATERIALIZED.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+WITH per_type AS (
+    SELECT type,
+           COUNT(*) n,
+           SUM(ABS(amount)) vol,
+           AVG(ABS(amount)) avg_amt
+    FROM transactions
+    WHERE status='SETTLED'
+    group by type)
+SELECT
+    type,
+    n,
+    vol,
+    ROUND(avg_amt, 2) AS avg_amt
+FROM per_type WHERE vol > 500;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 17
@@ -798,6 +825,18 @@ FROM per_type WHERE vol > 500;
 --    проще generate_series, но рекурсию просят показать явно.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+WITH RECURSIVE cal(d) AS (
+    SELECT
+        DATE '2025-04-01'
+        UNION ALL
+    SELECT d+1 FROM cal
+               WHERE d < DATE '2025-04-06')
+SELECT
+    cal.d,
+    COALESCE(SUM(ABS(t.amount)),0) AS vol
+FROM cal LEFT JOIN transactions t
+                   ON t.account_id=1006 AND t.created_at::date=cal.d
+GROUP BY cal.d;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 18
@@ -837,6 +876,25 @@ GROUP BY cal.d;
 --    (UNION вместо UNION ALL или лимит глубины), иначе бесконечность.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+WITH RECURSIVE ref_tree AS (
+    SELECT
+        id,
+        name,
+        referred_by,
+        1 AS depth,
+        name::text AS path
+    FROM users
+        WHERE referred_by IS NULL
+    UNION ALL
+    SELECT
+        u.id,
+        u.name,
+        u.referred_by,
+        rt.depth+1,
+        rt.path||' > '||u.name
+    FROM users u JOIN ref_tree rt
+                      ON u.referred_by = rt.id)
+SELECT id, name, depth, path FROM ref_tree;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 19
