@@ -943,6 +943,13 @@ SELECT id, name, depth, path FROM ref_tree;
 --    COALESCE(…,0) при необходимости.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+SELECT account_id,
+       SUM(ABS(amount)) FILTER (WHERE type='DEPOSIT')    AS deposits,
+       SUM(ABS(amount)) FILTER (WHERE type='WITHDRAWAL') AS withdrawals,
+       SUM(ABS(amount)) FILTER (WHERE type='FEE')        AS fees,
+       SUM(ABS(amount)) FILTER (WHERE type='TRANSFER')   AS transfers
+FROM transactions WHERE status='SETTLED'
+GROUP BY account_id;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 20
@@ -979,6 +986,9 @@ GROUP BY account_id;
 --    Любимый вопрос на внимательность.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+SELECT a.id FROM accounts a
+WHERE NOT EXISTS (SELECT 1 FROM cards c
+                  WHERE c.account_id = a.id);
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 21
@@ -1014,6 +1024,11 @@ SELECT 1 WHERE 1 NOT IN (2, NULL);
 --    остановится на первом совпадении.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+SELECT u.id, u.name FROM users u
+WHERE EXISTS (
+    SELECT 1 FROM accounts a
+                      JOIN transactions t ON t.account_id=a.id
+    WHERE a.user_id=u.id AND t.status='FAILED');
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 22
@@ -1049,6 +1064,9 @@ WHERE EXISTS (
 --    ≠ B−A.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+SELECT account_id FROM transactions
+EXCEPT
+SELECT account_id FROM cards;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 23
@@ -1081,6 +1099,11 @@ SELECT account_id FROM cards;
 --    за один проход».
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+SELECT account_id, COUNT(*) total,
+       COUNT(*) FILTER (WHERE status='SETTLED') settled,
+       COUNT(*) FILTER (WHERE status='PENDING') pending,
+       COUNT(*) FILTER (WHERE status='FAILED')  failed
+FROM transactions GROUP BY account_id;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 24
@@ -1124,6 +1147,13 @@ FROM transactions GROUP BY account_id;
 --    вставить. Не нужен апдейт — DO NOTHING.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+INSERT INTO payments
+(idempotency_key, account_id, amount, status)
+VALUES ('idem-abc-123', 1006, 250.00, 'SETTLED')
+ON CONFLICT (idempotency_key)
+    DO UPDATE SET status = EXCLUDED.status,
+                  updated_at = now()
+RETURNING idempotency_key, status;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 25
@@ -1161,6 +1191,14 @@ RETURNING idempotency_key, status;
 --    транзакции. Классический платёжный паттерн (settle-очередь).
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+BEGIN;
+SELECT id, payload FROM jobs
+WHERE status='PENDING'
+ORDER BY created_at
+    FOR UPDATE SKIP LOCKED
+LIMIT 2;
+-- обработать, UPDATE status='DONE'
+COMMIT;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 26
@@ -1200,6 +1238,11 @@ COMMIT;
 --    ручного unlock — легко словить утечку блокировки.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+BEGIN;
+SELECT pg_advisory_xact_lock(
+               hashtext('account:1006'));
+-- критическая секция под блокировкой по ключу
+COMMIT;  -- xact-lock снимается автоматически
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 27
@@ -1236,6 +1279,13 @@ COMMIT;  -- xact-lock снимается автоматически
 --    Условие balance>=100 — вторая линия.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+BEGIN;
+SELECT balance FROM accounts
+WHERE id=1006 FOR UPDATE;
+
+UPDATE accounts SET balance = balance - 100
+WHERE id=1006 AND balance >= 100;
+COMMIT;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 28
@@ -1279,6 +1329,12 @@ COMMIT;
 --    OFFSET (у стрима это был обход всего, Java №5). Нужен составной индекс (created_at,id).
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+SELECT id, account_id, created_at
+FROM transactions
+WHERE (created_at, id)
+          > (TIMESTAMPTZ '2025-04-03 15:10', 1004)
+ORDER BY created_at, id
+LIMIT 5;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 29
@@ -1317,6 +1373,10 @@ LIMIT 5;
 --    же беда — несовпадение типов колонки и литерала.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM transactions
+WHERE created_at >= '2025-03-01'
+  AND created_at <  '2025-03-02';
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
 --  эталон 30
