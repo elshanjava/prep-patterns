@@ -92,8 +92,8 @@
 
 select u.id, u.name, COALESCE(sum(t.amount), 0) AS settled_balance
             from users u
-            join public.accounts a on u.id = a.user_id
-            left join public.transactions t on a.id = t.account_id
+                join public.accounts a on u.id = a.user_id
+                left join public.transactions t on a.id = t.account_id
                          and t.status = 'SETTLED'
     group by u.id, u.name;
 
@@ -131,9 +131,12 @@ GROUP BY u.id, u.name;
 --    WHERE фильтрует строки ДО группировки, HAVING — агрегаты ПОСЛЕ. Путать нельзя.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
-select a.currency, count(*) as n, sum(balance) as total from accounts a
-                                                        where status = 'ACTIVE'
-                                                        group by a.currency
+select a.currency,
+       count(*) as n,
+       sum(balance) as total
+from accounts a
+    where status = 'ACTIVE'
+    group by a.currency
 having count(*) > 1;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
