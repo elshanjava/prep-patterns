@@ -14,8 +14,8 @@ final class PricingRule {
     private final List<String> blockedCountries;
 
     private PricingRule(Map<String, BigDecimal> tiers, List<String> blockedCountries) {
-        this.tiers            = Collections.unmodifiableMap(new HashMap<>(tiers));
-        this.blockedCountries = Collections.unmodifiableList(new ArrayList<>(blockedCountries));
+        this.tiers            = Map.copyOf(tiers);
+        this.blockedCountries = List.copyOf(blockedCountries);
     }
 
     static PricingRule of(Map<String, BigDecimal> tiers, List<String> blockedCountries) {

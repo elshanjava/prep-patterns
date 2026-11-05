@@ -2,7 +2,7 @@ package tdd.idempotency;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import tdd.zpractice.IdempotentProcessor2;
+import tdd.zpractice.idempotency.IdempotentProcessor2;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
