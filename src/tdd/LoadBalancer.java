@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class LoadBalancer {
 
@@ -16,7 +18,8 @@ public class LoadBalancer {
 
     private final Strategy strategy;
     private final List<String> servers = new ArrayList<>();
-    private Integer index = 0;
+    private final AtomicInteger index = new AtomicInteger(0);
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
     public LoadBalancer() {
         this.strategy = Strategy.ROUND_ROBIN;
@@ -27,29 +30,43 @@ public class LoadBalancer {
     }
 
     public void register(String server) {
-        Objects.requireNonNull(server, "Server is null");
-        if (servers.contains(server)) throw new IllegalArgumentException("Duplicate server");
-        if (servers.size() >= MAX_SERVERS) throw new IllegalStateException("Max capacity reached");
-        servers.add(server);
-
+        lock.writeLock().lock();
+        try {
+            Objects.requireNonNull(server, "Server is null");
+            if (servers.contains(server)) throw new IllegalArgumentException("Duplicate server");
+            if (servers.size() >= MAX_SERVERS) throw new IllegalStateException("Max capacity reached");
+            servers.add(server);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     public void deregister(String server) {
-        if (!servers.remove(server)) {
-            throw new IllegalArgumentException("Server " + server + " does not exist");
+        lock.writeLock().lock();
+        try {
+            if (!servers.remove(server)) {
+                throw new IllegalArgumentException("Server " + server + " does not exist");
+            }
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     public String get() {
-        if (servers.isEmpty()) throw new IllegalStateException("Servers is empty");
-        if (strategy == Strategy.RANDOM) {
-            return random();
+        lock.readLock().lock();
+        try {
+            if (servers.isEmpty()) throw new IllegalStateException("Servers is empty");
+            if (strategy == Strategy.RANDOM) {
+                return random();
+            }
+            return roundRobin();
+        } finally {
+            lock.readLock().unlock();
         }
-        return roundRobin();
     }
 
     private String roundRobin() {
-        return servers.get(Math.floorMod(index++, servers.size()));
+        return servers.get(Math.floorMod(index.getAndIncrement(), servers.size()));
     }
 
     private String random() {
@@ -57,6 +74,11 @@ public class LoadBalancer {
     }
 
     public int size() {
-        return servers.size();
+        lock.readLock().lock();
+        try {
+            return servers.size();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 }

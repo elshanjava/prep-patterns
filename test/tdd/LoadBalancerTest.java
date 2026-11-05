@@ -116,6 +116,7 @@ public class LoadBalancerTest {
         var ready = new CountDownLatch(total);
         var done = new CountDownLatch(total);
         var errorsCounter = new AtomicInteger(0);
+        var gettersDone = new CountDownLatch(getters);
 
         try (ExecutorService pool = Executors.newFixedThreadPool(total)) {
             for (int i = 0; i < getters; i++) {
@@ -123,17 +124,19 @@ public class LoadBalancerTest {
                     ready.countDown();
                     try {
                         ready.await();
-                        for (int j = 0; j < 1000; j++) {
-                            loadBalancer.get();
+                        for (int j = 0; j < 10000; j++) {
+                            String server = loadBalancer.get();
+                            if (server == null) errorsCounter.incrementAndGet();
                         }
                     }
-                    catch (IndexOutOfBoundsException | NullPointerException e) {
+                    catch (RuntimeException e) {
                         errorsCounter.incrementAndGet();
                     }
 
                     catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     } finally {
+                        gettersDone.countDown();
                         done.countDown();
                     }
                 });
@@ -145,9 +148,13 @@ public class LoadBalancerTest {
                     ready.countDown();
                      try {
                          ready.await();
-                         for (int j = 0; j < deregisters; j++) {
-                              loadBalancer.deregister(server);
-                              loadBalancer.register(server);
+                         while (gettersDone.getCount() > 0) {
+                             try {
+                                 loadBalancer.deregister(server);
+                                 loadBalancer.register(server);
+                             } catch (RuntimeException e) {
+                                 errorsCounter.incrementAndGet();      // это тоже баг, не глотать
+                             }
                          }
                      } catch (InterruptedException e) {
                          Thread.currentThread().interrupt();
